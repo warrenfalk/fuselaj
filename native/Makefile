@@ -12,7 +12,7 @@ clean:
 jni: jni/warrenfalk_fuselaj_Fuselaj.h
 
 libfuseconnector.so : fuseconnector.c jni/warrenfalk_fuselaj_Fuselaj.h
-	$(CC) -o libfuseconnector.so -shared $(JAVA_INCLUDE) -fPIC -D_FILE_OFFSET_BITS=64 fuseconnector.c
+	$(CC) -o libfuseconnector.so -shared $(JAVA_INCLUDE) fuseconnector.c `pkg-config fuse --libs --cflags` -fPIC
 
 jni/warrenfalk_fuselaj_Fuselaj.h : ../bin/warrenfalk/fuselaj/Fuselaj.class
 	javah -d jni -jni -classpath ../bin warrenfalk.fuselaj.Fuselaj
