@@ -8,6 +8,8 @@
 #include <fcntl.h> /* contains definitions of file options (the ones used with fcntl() and open()) */
 #include "jni/warrenfalk_fuselaj_Fuselaj.h"
 
-JNIEXPORT void JNICALL Java_warrenfalk_fuselaj_Fuselaj_initialize (JNIEnv *env, jobject obj) {
-	printf("Hello World\n");
+JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_Fuselaj_initialize (JNIEnv *env, jobject obj, jobjectArray args) {
+	int argc;
+	argc = (*env)->GetArrayLength(env, args);
+	printf("argc = %d\n", argc);
 }
