@@ -1,7 +1,6 @@
 package warrenfalk.fuselaj;
 
 public class Fuselaj {
-	
-	native int initialize(String[] args);
-
+	native int initialize(Filesystem fs, String[] args);
+	native static String getCurrentPath();
 }

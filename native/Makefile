@@ -1,19 +1,19 @@
 JAVA_INCLUDE=-I/usr/lib/jvm/java-7-openjdk-amd64/include -I/usr/lib/jvm/java-7-openjdk-amd64/include/linux
+OUTPUT=../bin
+SRCGEN=../src-gen
 CC=gcc
 CPP=g++
 
-all: libfuseconnector.so
+all: $(OUTPUT)/libfuselaj.so
 
 clean:
-	rm -f *.o
-	rm -f *.so
-	rm -rf jni
+	rm -f $(OUTPUT)/*.so
+	rm -f $(OUTPUT)/*.o
+	rm -f $(SRCGEN)/*.h
 
-jni: jni/warrenfalk_fuselaj_Fuselaj.h
+$(OUTPUT)/libfuselaj.so : fuselaj.c $(SRCGEN)/warrenfalk_fuselaj_Fuselaj.h
+	$(CC) -o $@ -shared $(JAVA_INCLUDE) fuselaj.c `pkg-config fuse --libs --cflags` -fPIC
 
-libfuseconnector.so : fuseconnector.c jni/warrenfalk_fuselaj_Fuselaj.h
-	$(CC) -o libfuseconnector.so -shared $(JAVA_INCLUDE) fuseconnector.c `pkg-config fuse --libs --cflags` -fPIC
+$(SRCGEN)/warrenfalk_fuselaj_Fuselaj.h : $(OUTPUT)/warrenfalk/fuselaj/Fuselaj.class
+	javah -d $(SRCGEN) -jni -classpath $(OUTPUT) warrenfalk.fuselaj.Fuselaj
 
-jni/warrenfalk_fuselaj_Fuselaj.h : ../bin/warrenfalk/fuselaj/Fuselaj.class
-	javah -d jni -jni -classpath ../bin warrenfalk.fuselaj.Fuselaj
-	
