@@ -1,6 +1,7 @@
 package warrenfalk.fuselaj;
 
 public enum Status {
+	OK (0, "Operation successful"),
 	EPERM (1, "Operation not permitted"),
 	ENOENT (2, "No such file or directory"),
 	ESRCH (3, "No such process"),
