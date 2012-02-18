@@ -10,60 +10,95 @@ public abstract class Filesystem {
 		Fuselaj fuselaj = new Fuselaj();
 		return fuselaj.initialize(this, args);
 	}
-	
 
+	/**
+	 * Fill in a Stat structure with metadata for the given path
+	 * The Stat structure passed in is already zeroed.
+	 * If a Stat field is meaningless or semi-meaningless, it should be left at zero.
+	 * @param path the path of the file relative to the file system
+	 * @param stat the Stat structure to fill in
+	 * @throws FilesystemException
+	 */
+	protected void getattr(String path, Stat stat) throws FilesystemException {
+		throw new FilesystemException(Errno.ENOENT);
+	}
+	
 	@SuppressWarnings("unused")
 	private final int _getattr(String path, Stat stat) {
-		System.err.println("getattr(" + path + ")");
-		if ("/".equals(path)) {
-			stat.putMode(Mode.IFDIR | 0755);
-			stat.putLinkCount(2);
+		try {
+			getattr(path, stat);
+			return 0;
 		}
-		else if ("/hello".equals(path)) {
-			stat.putMode(Mode.IFREG | 0444);
-			stat.putLinkCount(1);
-			stat.putSize("Hello World!".length());
+		catch (FilesystemException e) {
+			return -e.errno.code;
 		}
-		else {
-			return -Status.ENOENT.code;
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.EIO.code;
 		}
-		return -Status.OK.code;
+	}
+	
+	/**
+	 * Fill a buffer with directory entry information for a given directory
+	 * Fill the dirBuffer with the directory child information including the name of each child, and optionally an inode and mode.
+	 * @param path path of the directory relative to the filesystem
+	 * @param dirBuffer the entry buffer to fill
+	 * @param fileInfo a structure containing detail on the directory
+	 * @throws FilesystemException
+	 */
+	protected void readdir(String path, DirBuffer dirBuffer, FileInfo fileInfo) throws FilesystemException {
+		throw new FilesystemException(Errno.ENOENT);
 	}
 
 	@SuppressWarnings("unused")
 	private final int _readdir(String path, DirBuffer dirBuffer, FileInfo fileInfo) {
-		if (!"/".equals(path))
-			return -Status.ENOENT.code;
-		dirBuffer.putDir(".", 0, 0, 0);
-		dirBuffer.putDir("..", 0, 0, 0);
-		dirBuffer.putDir("hello", 0, 0, 0);
-		return -Status.OK.code;
+		try {
+			readdir(path, dirBuffer, fileInfo);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.EIO.code;
+		}
+	}
+	
+	protected void open(String path, FileInfo fileInfo) throws FilesystemException {
+		throw new FilesystemException(Errno.ENOENT);
 	}
 	
 	@SuppressWarnings("unused")
 	private final int _open(String path, FileInfo fileInfo) {
-		if (!"/hello".equals(path))
-			return -Status.ENOENT.code;
-		if ((fileInfo.getOpenFlags() & FileInfo.O_ACCMODE) != FileInfo.O_RDONLY)
-			return -Status.EACCES.code;
-		return -Status.OK.code;
+		try {
+			open(path, fileInfo);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.EIO.code;
+		}
+	}
+	
+	protected int read(String path, FileInfo fileInfo, ByteBuffer buffer, long position) throws FilesystemException {
+		throw new FilesystemException(Errno.ENOENT);
 	}
 	
 	@SuppressWarnings("unused")
 	private final int _read(String path, FileInfo fileInfo, ByteBuffer buffer, long position) {
-		int len;
-		if (!"/hello".equals(path))
-			return -Status.ENOENT.code;
-		len = "Hello World!".length();
-		if (position < len) {
-			if (position + buffer.limit() > len)
-				len -= position;
-			byte[] bytes = "Hello World!".getBytes();
-			buffer.put(bytes, (int)position, len);
+		try {
+			return read(path, fileInfo, buffer, position);
 		}
-		else {
-			len = 0;
+		catch (FilesystemException e) {
+			return -e.errno.code;
 		}
-		return len;
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.EIO.code;
+		}
 	}
 }
