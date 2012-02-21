@@ -16,7 +16,11 @@ typedef struct stat st;
 void dumpfield(const char *typename, const char *name, int size, long offset, const char *caption) {
 	const char *ftype = "??";
 	const char *type = "??";
-	if (size == 4) {
+	if (size == 2) {
+		ftype = "Short";
+		type = "short";
+	}
+	else if (size == 4) {
 		ftype = "Int";
 		type = "int";
 	}
@@ -58,6 +62,30 @@ int main(int argc, char *argv[]) {
     dumpField("Stat", "ModTime", struct stat, st_mtime, "time of last modification");
     dumpField("Stat", "CTime", struct stat, st_ctime, "time of last status change");
     printf("}\n\n");
+    int x = ENOENT;
+
+    printf("public class StatVfs {\n");
+    dumpField("StatVfs", "BlockSize", struct statvfs, f_bsize, "file system block size");
+    dumpField("StatVfs", "FragmentSize", struct statvfs, f_frsize, "fragment size");
+    dumpField("StatVfs", "Blocks", struct statvfs, f_blocks, "size of fs in FragmentSize units");
+    dumpField("StatVfs", "BlocksFree", struct statvfs, f_bfree, "# free blocks");
+    dumpField("StatVfs", "BlocksAvail", struct statvfs, f_bavail, "# free blocks for unprivileged users");
+    dumpField("StatVfs", "Files", struct statvfs, f_files, "# inodes");
+    dumpField("StatVfs", "FilesFree", struct statvfs, f_ffree, "# free inodes");
+    dumpField("StatVfs", "FilesAvail", struct statvfs, f_favail, "# free inodes for unprivileged users");
+    dumpField("StatVfs", "FileSystemId", struct statvfs, f_fsid, "file system ID");
+    dumpField("StatVfs", "MountFlags", struct statvfs, f_flag, "mount flags");
+    dumpField("StatVfs", "NameMax", struct statvfs, f_namemax, "maximum filename length");
+    printf("}\n\n");
+
+    printf("public class Flock {\n");
+    dumpField("Flock", "Type", struct flock, l_type, "Type of lock: F_RDLCK, F_WRLCK, or F_UNLCK.");
+    dumpField("Flock", "Whence", struct flock, l_whence, "Where `l_start' is relative to (like `lseek'). ");
+    dumpField("Flock", "Start", struct flock, l_start, "Offset where the lock begins. ");
+    dumpField("Flock", "Length", struct flock, l_len, "Size of the locked area; zero means until EOF. ");
+    dumpField("Flock", "Pid", struct flock, l_pid, "Process holding the lock. ");
+    printf("}\n\n");
+
     printf("// Warning: because of the use of bit fields, it is not possible to determine with accuracy through code where several of the flags are\n");
     printf("public class FileInfo {\n");
     dumpField("FileInfo", "OpenFlags", struct fuse_file_info, flags, "Open flags.	 Available in open() and release()");
@@ -71,6 +99,17 @@ int main(int argc, char *argv[]) {
     dumpField("FileInfo", "FileHandle", struct fuse_file_info, fh, "File handle.  May be filled in by filesystem in open(). Available in all other file operations");
     dumpField("FileInfo", "LockOwner", struct fuse_file_info, lock_owner, "Lock owner id.  Available in locking operations and flush");
     printf("}\n\n");
+
+    printf("public class FuseConnInfo {\n");
+    dumpField("FuseConnInfo", "ProtoMajor", struct fuse_conn_info, proto_major, "Major version of the protocol (read-only)");
+    dumpField("FuseConnInfo", "ProtoMinor", struct fuse_conn_info, proto_minor, "Minor version of the protocol (read-only)");
+    dumpField("FuseConnInfo", "AsyncRead", struct fuse_conn_info, async_read, "Is asynchronous read supported (read-write)");
+    dumpField("FuseConnInfo", "MaxWrite", struct fuse_conn_info, max_write, "Maximum size of the write buffer");
+    dumpField("FuseConnInfo", "MaxReadahead", struct fuse_conn_info, max_readahead, "Maximum readahead");
+    dumpField("FuseConnInfo", "Capable", struct fuse_conn_info, capable, "Capability flags, that the kernel supports");
+    dumpField("FuseConnInfo", "Want", struct fuse_conn_info, want, "Capability flags, that the filesystem wants to enable");
+    printf("}\n\n");
+
 
 	return 0;
 }

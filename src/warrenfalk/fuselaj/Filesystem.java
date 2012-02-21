@@ -1,32 +1,82 @@
 package warrenfalk.fuselaj;
 
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetEncoder;
 
 
 
 public abstract class Filesystem {
+	
+	public Filesystem() {
+	}
+	
+	final static ThreadLocal<CharsetEncoder> _utf8encoder = new ThreadLocal<CharsetEncoder>() {
+		protected CharsetEncoder initialValue() {
+			return Charset.forName("utf-8").newEncoder();
+		}
+	};
+
+	private native void initialize();
+	
+	private native int fuse_main(String[] args);
+	
+	boolean isImplemented(String name) {
+		Method base = getBaseMethod(name);
+		if (base == null)
+			return false;
+		return isImplemented(base);
+	}
+	
+	private Method getBaseMethod(String name) {
+		for (Method method : Filesystem.class.getDeclaredMethods()) {
+			if (name.equals(method.getName()))
+				return method;
+		}
+		return null;
+	}
+	
+	boolean isImplemented(Method base) {
+		for (Method method : getClass().getDeclaredMethods()) {
+			if (!base.getName().equals(method.getName()))
+				continue;
+			Class<?>[] baseptypes = base.getParameterTypes();
+			Class<?>[] methodptypes = method.getParameterTypes();
+			if (baseptypes.length != methodptypes.length)
+				continue;
+			for (int i = 0; i < baseptypes.length; i++)
+				if (!baseptypes[i].equals(methodptypes[i]))
+					continue;
+			return !method.getDeclaringClass().equals(Filesystem.class); 
+		}
+		return false; 
+	}
+
 	public int run(String[] args) {
 		System.loadLibrary("fuselaj");
-		Fuselaj fuselaj = new Fuselaj();
-		return fuselaj.initialize(this, args);
+		initialize();
+		return fuse_main(args);
 	}
 
 	/**
 	 * Fill in a Stat structure with metadata for the given path
 	 * The Stat structure passed in is already zeroed.
 	 * If a Stat field is meaningless or semi-meaningless, it should be left at zero.
+	 * The function should fill in the mode field and the links field
+	 * The mode field should contain one of the IF modes (e.g. IFDIR or IFREG)
 	 * @param path the path of the file relative to the file system
 	 * @param stat the Stat structure to fill in
 	 * @throws FilesystemException
 	 */
 	protected void getattr(String path, Stat stat) throws FilesystemException {
-		throw new FilesystemException(Errno.ENOENT);
+		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 	
-	@SuppressWarnings("unused")
-	private final int _getattr(String path, Stat stat) {
+	private final int _getattr(String path, ByteBuffer stat) {
 		try {
-			getattr(path, stat);
+			getattr(path, new Stat(stat));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -34,7 +84,7 @@ public abstract class Filesystem {
 		}
 		catch (Throwable t) {
 			t.printStackTrace();
-			return -Errno.EIO.code;
+			return -Errno.IOError.code;
 		}
 	}
 	
@@ -47,13 +97,12 @@ public abstract class Filesystem {
 	 * @throws FilesystemException
 	 */
 	protected void readdir(String path, DirBuffer dirBuffer, FileInfo fileInfo) throws FilesystemException {
-		throw new FilesystemException(Errno.ENOENT);
+		throw new FilesystemException(Errno.NoSuchFileOrDirectory);
 	}
 
-	@SuppressWarnings("unused")
-	private final int _readdir(String path, DirBuffer dirBuffer, FileInfo fileInfo) {
+	private final int _readdir(String path, DirBuffer dirBuffer, ByteBuffer fileInfo) {
 		try {
-			readdir(path, dirBuffer, fileInfo);
+			readdir(path, dirBuffer, new FileInfo(fileInfo));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -61,18 +110,17 @@ public abstract class Filesystem {
 		}
 		catch (Throwable t) {
 			t.printStackTrace();
-			return -Errno.EIO.code;
+			return -Errno.IOError.code;
 		}
 	}
 	
 	protected void open(String path, FileInfo fileInfo) throws FilesystemException {
-		throw new FilesystemException(Errno.ENOENT);
+		throw new FilesystemException(Errno.NoSuchFileOrDirectory);
 	}
 	
-	@SuppressWarnings("unused")
-	private final int _open(String path, FileInfo fileInfo) {
+	private final int _open(String path, ByteBuffer fileInfo) {
 		try {
-			open(path, fileInfo);
+			open(path, new FileInfo(fileInfo));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -80,25 +128,571 @@ public abstract class Filesystem {
 		}
 		catch (Throwable t) {
 			t.printStackTrace();
-			return -Errno.EIO.code;
+			return -Errno.IOError.code;
 		}
 	}
 	
-	protected int read(String path, FileInfo fileInfo, ByteBuffer buffer, long position) throws FilesystemException {
-		throw new FilesystemException(Errno.ENOENT);
+	protected void read(String path, FileInfo fileInfo, ByteBuffer buffer, long position) throws FilesystemException {
+		throw new FilesystemException(Errno.NoSuchFileOrDirectory);
 	}
 	
-	@SuppressWarnings("unused")
-	private final int _read(String path, FileInfo fileInfo, ByteBuffer buffer, long position) {
+	private final int _read(String path, ByteBuffer fileInfo, ByteBuffer buffer, long position) {
 		try {
-			return read(path, fileInfo, buffer, position);
+			int start = buffer.position();
+			read(path, new FileInfo(fileInfo), buffer, position);
+			return buffer.position() - start;
 		}
 		catch (FilesystemException e) {
 			return -e.errno.code;
 		}
 		catch (Throwable t) {
 			t.printStackTrace();
-			return -Errno.EIO.code;
+			return -Errno.IOError.code;
 		}
 	}
+	
+	protected void mkdir(String path, int mode) throws FilesystemException {
+		throw new FilesystemException(Errno.NoSuchFileOrDirectory);
+	}
+	
+	private final int _mkdir(String path, int mode) {
+		try {
+			mkdir(path, mode);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+	
+	private void _init(ByteBuffer conn){
+		new FuseConnInfo(conn);
+	}
+
+	private void _destroy(){
+	}
+
+    private final int _fgetattr(String path, ByteBuffer stat, ByteBuffer fi) {
+		try {
+			fgetattr(path, new Stat(stat), new FileInfo(fi));
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void fgetattr(String path, Stat stat, FileInfo fi) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _access(String path, int mask) {
+		try {
+			access(path, mask);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+	
+	private void access(String path, int mask) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _readlink(String path, ByteBuffer buffer) {
+		// fill buffer with zero-terminated string
+		try {
+			String target = readlink(path);
+			CharBuffer cb = CharBuffer.wrap(target);
+			CharsetEncoder encoder = _utf8encoder.get();
+			encoder.encode(cb, buffer, true);
+			buffer.put((byte)0);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private String readlink(String path) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _opendir(String path, ByteBuffer fi) {
+		try {
+			opendir(path, new FileInfo(fi));
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void opendir(String path, FileInfo fi) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _mknod(String path, int mode, long rdev) {
+		try {
+			mknod(path, mode, rdev);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void mknod(String path, int mode, long rdev) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _unlink(String path) {
+		try {
+			unlink(path);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void unlink(String path) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _rmdir(String path) {
+		try {
+			rmdir(path);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void rmdir(String path) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _symlink(String to, String from) {
+		try {
+			symlink(to, from);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void symlink(String to, String from) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _rename(String from, String to) {
+		try {
+			rename(from, to);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void rename(String from, String to) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _link(String from, String to) {
+		try {
+			link(from, to);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void link(String from, String to) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _chmod(String path, int mode) {
+		try {
+			chmod(path, mode);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void chmod(String path, int mode) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _chown(String path, int uid, int gid) {
+		try {
+			chown(path, uid, gid);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void chown(String path, int uid, int gid) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _truncate(String path, long size) {
+		try {
+			truncate(path, size);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void truncate(String path, long size) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _ftruncate(String path, long size) {
+		try {
+			ftruncate(path, size);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void ftruncate(String path, long size) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _utimens(String path, long accessSeconds, long accessNanoseconds, long modSeconds, long modNanoseconds) {
+		try {
+			utimens(path, accessSeconds, accessNanoseconds, modSeconds, modNanoseconds);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void utimens(String path, long accessSeconds, long accessNanoseconds, long modSeconds, long modNanoseconds) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _write(String path, ByteBuffer fi, ByteBuffer bb, long offset) {
+		try {
+			int start = bb.position();
+			write(path, new FileInfo(fi), bb, offset);
+			return bb.position() - start;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void write(String path, FileInfo fi, ByteBuffer bb, long offset) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _statfs(String path, ByteBuffer stat) {
+		try {
+			statfs(path, new StatVfs(stat));
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void statfs(String path, StatVfs stat) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _release(String path, ByteBuffer fi) {
+		try {
+			release(path, new FileInfo(fi));
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void release(String path, FileInfo fi) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _releasedir(String path, ByteBuffer fi) {
+		try {
+			releasedir(path, new FileInfo(fi));
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void releasedir(String path, FileInfo fi) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _fsync(String path, int isdatasync, ByteBuffer fi) {
+		try {
+			fsync(path, isdatasync, new FileInfo(fi));
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void fsync(String path, int isdatasync, FileInfo fi) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _fsyncdir(String path, int isdatasync, ByteBuffer fi) {
+		try {
+			fsyncdir(path, isdatasync, new FileInfo(fi));
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void fsyncdir(String path, int isdatasync, FileInfo fi) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _flush(String path, ByteBuffer fi) {
+		try {
+			flush(path, new FileInfo(fi));
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void flush(String path, FileInfo fi) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _lock(String path, ByteBuffer fi, int cmd, ByteBuffer locks) {
+		try {
+			lock(path, new FileInfo(fi), cmd, new Flock(locks));
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void lock(String path, FileInfo fi, int cmd, Flock locks) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _bmap(String path, long blocksize, ByteBuffer blockno) {
+		try {
+			bmap(path, blocksize, blockno);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void bmap(String path, long blocksize, ByteBuffer blockno) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _setxattr(String path, String name, String value, long size, int flags) {
+		try {
+			setxattr(path, name, value, size, flags);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void setxattr(String path, String name, String value, long size, int flags) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _getxattr(String path, String name, ByteBuffer value) {
+		try {
+			getxattr(path, name, value);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void getxattr(String path, String name, ByteBuffer value) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+    private final int _listxattr(String path, ByteBuffer list) {
+		try {
+			listxattr(path, list);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+	
+	private void listxattr(String path, ByteBuffer list) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+	private final int _removexattr(String path, String name) {
+		try {
+			removexattr(path, name);
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+
+	private void removexattr(String path, String name) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+	/*
+	@SuppressWarnings("unused")
+    private final int _ioctl(String path, int cmd, void* arg, ByteBuffer fi, unsigned int flags, void* data) {
+	}
+
+	@SuppressWarnings("unused")
+    private final int _poll(String path, ByteBuffer fi, struct fuse_pollhandle* ph, unsigned* reventsp) {
+	}
+	*/
 }
