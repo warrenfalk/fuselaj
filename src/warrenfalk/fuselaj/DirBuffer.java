@@ -10,6 +10,10 @@ public final class DirBuffer {
 		this.filler = filler;
 		this.position = position;
 	}
+	
+	public long getPosition() {
+		return position;
+	}
 
 	public native boolean putDir(String name, long inode, int mode, long position);
 	
