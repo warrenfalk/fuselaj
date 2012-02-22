@@ -11,7 +11,8 @@ public final class DirBuffer {
 		this.position = position;
 	}
 
-	// TODO: create a version of this that doesn't have inode or mode
 	public native boolean putDir(String name, long inode, int mode, long position);
+	
+	public native boolean putDir(String name, long position);
 
 }

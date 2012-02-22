@@ -629,11 +629,28 @@ JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_Filesystem_fuse_1main (JNIEnv *en
 	return res;
 }
 
-JNIEXPORT jboolean JNICALL Java_warrenfalk_fuselaj_DirBuffer_putDir (JNIEnv *env, jobject obj, jstring name, jlong inode, jint mode, jlong position) {
+JNIEXPORT jboolean JNICALL Java_warrenfalk_fuselaj_DirBuffer_putDir__Ljava_lang_String_2JIJ (JNIEnv *env, jobject obj, jstring name, jlong inode, jint mode, jlong position) {
 	void *buf = (void*)DirBuffer_get_buffer(env, obj);
 	fuse_fill_dir_t filler = (fuse_fill_dir_t)DirBuffer_get_filler(env, obj);
 
-	// TODO: use inode and mode
+	const char *sname = (*env)->GetStringUTFChars(env, name, NULL);
+	struct stat st;
+	memset(&st, 0, sizeof(struct stat));
+	st.st_ino = inode;
+	st.st_mode = mode;
+	int res = filler(buf, sname, &st, position);
+	(*env)->ReleaseStringUTFChars(env, name, sname);
+
+	DirBuffer_set_position(env, obj, position);
+
+	return res;
+}
+
+
+JNIEXPORT jboolean JNICALL Java_warrenfalk_fuselaj_DirBuffer_putDir__Ljava_lang_String_2J (JNIEnv *env, jobject obj, jstring name, jlong position) {
+	void *buf = (void*)DirBuffer_get_buffer(env, obj);
+	fuse_fill_dir_t filler = (fuse_fill_dir_t)DirBuffer_get_filler(env, obj);
+
 	const char *sname = (*env)->GetStringUTFChars(env, name, NULL);
 	int res = filler(buf, sname, NULL, position);
 	(*env)->ReleaseStringUTFChars(env, name, sname);
