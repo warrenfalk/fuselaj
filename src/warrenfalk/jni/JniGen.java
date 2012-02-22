@@ -26,7 +26,8 @@ public class JniGen {
 					for (Constructor<?> constructor : input.getDeclaredConstructors())
 						writer.println("static jmethodID " + getUniqueMethodName("Create", constructor.getParameterTypes()) + ";");
 					for (Method method : input.getDeclaredMethods())
-						writer.println("static jmethodID " + getUniqueMethodName(method.getName(), method.getParameterTypes()) + "_method;");
+						if (!Modifier.isNative(method.getModifiers()))
+							writer.println("static jmethodID " + getUniqueMethodName(method.getName(), method.getParameterTypes()) + "_method;");
 					writer.println("");
 					writer.println("jobject to_global(JNIEnv *env, jobject obj);");
 					writer.println("");
@@ -50,6 +51,8 @@ public class JniGen {
 						writer.println("\tassert (" + getUniqueMethodName("Create", constructor.getParameterTypes()) + " != 0);");
 					}
 					for (Method method : input.getDeclaredMethods()) {
+						if (Modifier.isNative(method.getModifiers()))
+							continue;
 						String signature = getSig(method);
 						writer.println("\t" + getUniqueMethodName(method.getName(), method.getParameterTypes()) + "_method = (*env)->GetMethodID(env, Class, \"" + method.getName() + "\", \"" + signature + "\");");
 						writer.println("\tassert (" + getUniqueMethodName(method.getName(), method.getParameterTypes()) + "_method != 0);");
@@ -75,6 +78,8 @@ public class JniGen {
 						writer.println("}");
 					}
 					for (Method method : input.getDeclaredMethods()) {
+						if (Modifier.isNative(method.getModifiers()))
+							continue;
 						String paramList = getParamList(method);
 						String paramNameList = getParamNameList(method);
 						writer.println("");
@@ -95,6 +100,8 @@ public class JniGen {
 						writer.println("jobject " + className + "_" + getUniqueMethodName("Create", constructor.getParameterTypes()) + "(JNIEnv* env" + paramList + ");");
 					}
 					for (Method method : input.getDeclaredMethods()) {
+						if (Modifier.isNative(method.getModifiers()))
+							continue;
 						String paramList = getParamList(method);
 						writer.println(getJniType(method.getReturnType()) + " " + className + "_call_" + getUniqueMethodName(method.getName(), method.getParameterTypes()) + "(JNIEnv* env, jobject obj" + paramList + ");");
 					}
