@@ -23,6 +23,8 @@ public abstract class Filesystem {
 	
 	private native int fuse_main(String[] args);
 	
+	native static ByteBuffer getCurrentContext();
+	
 	boolean isImplemented(String name) {
 		Method base = getBaseMethod(name);
 		if (base == null)
@@ -190,8 +192,16 @@ public abstract class Filesystem {
 		}
 	}
 
+    /**
+     * Just like <code>getattr</code> except that it is meant to work with an open file handle (hence the <code>FileInfo fi</code> parameter).
+     * <p>If you aren't doing file-handle-based operations, you can just pass this call onto <code>getattr()</code>, which is what the default implementation does</p>
+     * @param path
+     * @param stat
+     * @param fi
+     * @throws FilesystemException
+     */
     protected void fgetattr(String path, Stat stat, FileInfo fi) throws FilesystemException {
-		throw new FilesystemException(Errno.FunctionNotImplemented);
+    	getattr(path, stat);
 	}
 
     private final int _access(String path, int mask) {
@@ -208,6 +218,18 @@ public abstract class Filesystem {
 		}
 	}
 	
+    /**
+     * This is the same as the access(2) system call.
+     * <p>Implementation should throw <code>FilesystemException</code> with 
+     * <code>Errno.NoSuchFileOrDirectory</code> if the path doesn't exist, 
+     * <code>Errno.PermissionDenied</code> if the requested permission isn't available.</p>
+     * <p>Note: it can be called on files, directories, or any other object that appears in the filesystem.
+     * This call is not required but is highly recommended.</p>
+     * <p>Call <code>FuseContext.getCurrent()</code> to get the current user id and group id.</p>
+     * @param path
+     * @param mask
+     * @throws FilesystemException
+     */
     protected void access(String path, int mask) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -305,7 +327,7 @@ public abstract class Filesystem {
 
     /**
      * Removes the directory indicated by <code>path</code>
-     * It is up to this function to check for a non-empty directory and fail accordingly
+     * <p>It is up to this function to check for a non-empty directory and fail accordingly</p>
      * @param path
      * @throws FilesystemException
      */
@@ -399,6 +421,15 @@ public abstract class Filesystem {
 		}
 	}
 
+    /**
+     * Change the owner of a file.
+     * The implementer should leave uid and gid unchanged if each is -1.
+     * This function will not be called unless the filesystem process has the appropriate permissions (e.g. as root)
+     * @param path
+     * @param uid new userid or -1 to leave unchanged
+     * @param gid new group id or -1 to leave unchanged
+     * @throws FilesystemException
+     */
     protected void chown(String path, int uid, int gid) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -689,6 +720,24 @@ public abstract class Filesystem {
 	}
 
 	protected void removexattr(String path, String name) throws FilesystemException {
+		throw new FilesystemException(Errno.FunctionNotImplemented);
+	}
+
+	private final int _create(String path, long mode, ByteBuffer fi) {
+		try {
+			create(path, mode, new FileInfo(fi));
+			return 0;
+		}
+		catch (FilesystemException e) {
+			return -e.errno.code;
+		}
+		catch (Throwable t) {
+			t.printStackTrace();
+			return -Errno.IOError.code;
+		}
+	}
+	
+	protected void create(String path, long mode, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 

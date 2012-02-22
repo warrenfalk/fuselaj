@@ -1,6 +1,7 @@
 #define FUSE_USE_VERSION 26
 
 #include <stdlib.h>
+#include <time.h>
 #include <fuse.h> /* contains definitions for basic functions needed to implement a filesystem */
 #include <stdio.h>
 #include <string.h>
@@ -502,6 +503,19 @@ int fuselaj_removexattr(const char* path, const char* list){
 	return jret;
 }
 
+int fuselaj_create(const char * path, mode_t mode, struct fuse_file_info *fi) {
+	JNIEnv* env;
+	env = get_env();
+
+	jstring jpath = JSTRING(path);
+	jobject jfi = WRAPSTRUCT(fi, struct fuse_file_info);
+	jint jret = Filesystem_call__create(env, fuselaj.jvmfsimpl, jpath, mode, jfi);
+	(*env)->DeleteLocalRef(env, jpath);
+	(*env)->DeleteLocalRef(env, jfi);
+
+	return jret;
+}
+
 /*
 int fuselaj_ioctl(const char* path, int cmd, void* arg, struct fuse_file_info* fi, unsigned int flags, void* data){
 	JNIEnv* env;
@@ -598,6 +612,7 @@ JNIEXPORT void JNICALL Java_warrenfalk_fuselaj_Filesystem_initialize (JNIEnv *en
 	fuselaj_operations.getxattr = is_implemented(env, fuselaj.jvmfsimpl, "getxattr") ? fuselaj_getxattr : 0;
 	fuselaj_operations.listxattr = is_implemented(env, fuselaj.jvmfsimpl, "listxattr") ? fuselaj_listxattr : 0;
 	fuselaj_operations.removexattr = is_implemented(env, fuselaj.jvmfsimpl, "removexattr") ? fuselaj_removexattr : 0;
+	fuselaj_operations.create = is_implemented(env, fuselaj.jvmfsimpl, "create") ? fuselaj_create : 0;
 	//fuselaj_operations.ioctl = is_implemented(env, fuselaj.jvmfsimpl, "ioctl") ? fuselaj_ioctl : 0;
 	//fuselaj_operations.poll = is_implemented(env, fuselaj.jvmfsimpl, "poll") ? fuselaj_poll : 0;
 
@@ -660,3 +675,9 @@ JNIEXPORT jboolean JNICALL Java_warrenfalk_fuselaj_DirBuffer_putDir__Ljava_lang_
 	return res;
 }
 
+
+JNIEXPORT jobject JNICALL Java_warrenfalk_fuselaj_Filesystem_getCurrentContext (JNIEnv *env, jclass fsclass) {
+	struct fuse_context *context = fuse_get_context();
+	jobject jcontext = to_global(env, WRAPSTRUCT(context, struct fuse_context));
+	return jcontext;
+}
