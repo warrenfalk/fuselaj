@@ -11,9 +11,10 @@ typedef struct stat st;
 
 #define fieldoffset(type, field) ((unsigned long) &(((type *) 0)->field))
 #define fieldsize(type, field) sizeof(((type *) 0)->field)
-#define dumpField(typename, name, type, field, caption) dumpfield(typename, name, fieldsize(type, field), fieldoffset(type, field), caption)
+#define dumpField(typename, name, type, field, caption) dumpfield(1, typename, name, fieldsize(type, field), fieldoffset(type, field), caption)
+#define dumpRoField(typename, name, type, field, caption) dumpfield(0, typename, name, fieldsize(type, field), fieldoffset(type, field), caption)
 
-void dumpfield(const char *typename, const char *name, int size, long offset, const char *caption) {
+void dumpfield(int putter, const char *typename, const char *name, int size, long offset, const char *caption) {
 	const char *ftype = "??";
 	const char *type = "??";
 	if (size == 2) {
@@ -35,14 +36,16 @@ void dumpfield(const char *typename, const char *name, int size, long offset, co
 	printf("\t\treturn bb.get%s(0x%lx);\n", ftype, offset);
 	printf("\t}\n");
 	printf("\t\n");
-	printf("\t/**\n");
-	printf("\t * Set %s\n", caption);
-	printf("\t */\n");
-	printf("\tpublic %s put%s(final %s value) {\n", typename, name, type);
-	printf("\t\tbb.put%s(0x%lx, value);\n", ftype, offset);
-	printf("\t\treturn this;\n");
-	printf("\t}\n");
-	printf("\t\n");
+	if (putter) {
+		printf("\t/**\n");
+		printf("\t * Set %s\n", caption);
+		printf("\t */\n");
+		printf("\tpublic %s put%s(final %s value) {\n", typename, name, type);
+		printf("\t\tbb.put%s(0x%lx, value);\n", ftype, offset);
+		printf("\t\treturn this;\n");
+		printf("\t}\n");
+		printf("\t\n");
+	}
 }
 
 int main(int argc, char *argv[]) {
@@ -110,6 +113,13 @@ int main(int argc, char *argv[]) {
     dumpField("FuseConnInfo", "Want", struct fuse_conn_info, want, "Capability flags, that the filesystem wants to enable");
     printf("}\n\n");
 
+    printf("public class FuseContext {\n");
+    dumpRoField("FuseContext", "FuseHandle", struct fuse_context, fuse, "Handle to fuse environment");
+    dumpRoField("FuseContext", "UserId", struct fuse_context, uid, "User ID of the calling process");
+    dumpRoField("FuseContext", "GroupId", struct fuse_context, gid, "Group ID of the calling process");
+    dumpRoField("FuseContext", "ProcessId", struct fuse_context, pid, "Thread ID of the calling process");
+    dumpRoField("FuseContext", "UMask", struct fuse_context, umask, "Umask of the calling process (introduced in version 2.8)");
+    printf("}\n\n");
 
 	return 0;
 }
