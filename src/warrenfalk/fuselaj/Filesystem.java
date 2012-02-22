@@ -190,7 +190,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void fgetattr(String path, Stat stat, FileInfo fi) throws FilesystemException {
+    protected void fgetattr(String path, Stat stat, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -208,7 +208,7 @@ public abstract class Filesystem {
 		}
 	}
 	
-	private void access(String path, int mask) throws FilesystemException {
+    protected void access(String path, int mask) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -231,7 +231,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private String readlink(String path) throws FilesystemException {
+    protected String readlink(String path) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -249,7 +249,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void opendir(String path, FileInfo fi) throws FilesystemException {
+    protected void opendir(String path, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -267,7 +267,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void mknod(String path, int mode, long rdev) throws FilesystemException {
+    protected void mknod(String path, int mode, long rdev) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -285,7 +285,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void unlink(String path) throws FilesystemException {
+    protected void unlink(String path) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -303,7 +303,13 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void rmdir(String path) throws FilesystemException {
+    /**
+     * Removes the directory indicated by <code>path</code>
+     * It is up to this function to check for a non-empty directory and fail accordingly
+     * @param path
+     * @throws FilesystemException
+     */
+	protected void rmdir(String path) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -321,7 +327,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void symlink(String to, String from) throws FilesystemException {
+    protected void symlink(String to, String from) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -339,7 +345,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void rename(String from, String to) throws FilesystemException {
+    protected void rename(String from, String to) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -357,7 +363,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void link(String from, String to) throws FilesystemException {
+    protected void link(String from, String to) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -375,7 +381,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void chmod(String path, int mode) throws FilesystemException {
+    protected void chmod(String path, int mode) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -393,7 +399,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void chown(String path, int uid, int gid) throws FilesystemException {
+    protected void chown(String path, int uid, int gid) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -411,7 +417,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void truncate(String path, long size) throws FilesystemException {
+    protected void truncate(String path, long size) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -429,7 +435,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void ftruncate(String path, long size) throws FilesystemException {
+    protected void ftruncate(String path, long size) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -447,7 +453,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void utimens(String path, long accessSeconds, long accessNanoseconds, long modSeconds, long modNanoseconds) throws FilesystemException {
+    protected void utimens(String path, long accessSeconds, long accessNanoseconds, long modSeconds, long modNanoseconds) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -466,7 +472,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void write(String path, FileInfo fi, ByteBuffer bb, long offset) throws FilesystemException {
+    protected void write(String path, FileInfo fi, ByteBuffer bb, long offset) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -484,7 +490,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void statfs(String path, StatVfs stat) throws FilesystemException {
+    protected void statfs(String path, StatVfs stat) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -502,7 +508,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void release(String path, FileInfo fi) throws FilesystemException {
+    protected void release(String path, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -520,7 +526,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void releasedir(String path, FileInfo fi) throws FilesystemException {
+    protected void releasedir(String path, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -538,7 +544,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void fsync(String path, int isdatasync, FileInfo fi) throws FilesystemException {
+    protected void fsync(String path, int isdatasync, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -556,7 +562,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void fsyncdir(String path, int isdatasync, FileInfo fi) throws FilesystemException {
+    protected void fsyncdir(String path, int isdatasync, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -574,7 +580,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void flush(String path, FileInfo fi) throws FilesystemException {
+    protected void flush(String path, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -592,7 +598,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void lock(String path, FileInfo fi, int cmd, Flock locks) throws FilesystemException {
+    protected void lock(String path, FileInfo fi, int cmd, Flock locks) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -610,7 +616,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void bmap(String path, long blocksize, ByteBuffer blockno) throws FilesystemException {
+    protected void bmap(String path, long blocksize, ByteBuffer blockno) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -628,7 +634,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void setxattr(String path, String name, String value, long size, int flags) throws FilesystemException {
+    protected void setxattr(String path, String name, String value, long size, int flags) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -646,7 +652,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void getxattr(String path, String name, ByteBuffer value) throws FilesystemException {
+    protected void getxattr(String path, String name, ByteBuffer value) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -664,7 +670,7 @@ public abstract class Filesystem {
 		}
 	}
 	
-	private void listxattr(String path, ByteBuffer list) throws FilesystemException {
+    protected void listxattr(String path, ByteBuffer list) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -682,7 +688,7 @@ public abstract class Filesystem {
 		}
 	}
 
-	private void removexattr(String path, String name) throws FilesystemException {
+	protected void removexattr(String path, String name) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
