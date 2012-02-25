@@ -49,6 +49,13 @@ public class FuseContext {
 	}
 	
 	/**
+	 * Get Private data returned from init()
+	 */
+	public Object getPrivateData() {
+		return Filesystem.toObject(bb.getLong(0x18));
+	}
+	
+	/**
 	 * Get Umask of the calling process (introduced in version 2.8)
 	 */
 	public int getUMask() {

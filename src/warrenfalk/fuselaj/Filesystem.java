@@ -9,8 +9,20 @@ import java.nio.charset.CharsetEncoder;
 
 
 public abstract class Filesystem {
+	/** Flag indicating, that the filesystem can accept a NULL path
+	 * as the first argument for the following operations:
+	 *
+	 * read, write, flush, release, fsync, readdir, releasedir,
+	 * fsyncdir, ftruncate, fgetattr and lock
+	 */
+	final boolean nullPathsOk;
 	
-	public Filesystem() {
+	/** Construct a Filesystem object
+	 * 
+	 * @param nullPathsOk flag indicating that the filesystem can accept a NULL path as the first argument for operations receiving FileInfo structure
+	 */
+	public Filesystem(final boolean nullPathsOk) {
+		this.nullPathsOk = nullPathsOk;
 	}
 	
 	final static ThreadLocal<CharsetEncoder> _utf8encoder = new ThreadLocal<CharsetEncoder>() {
@@ -24,6 +36,8 @@ public abstract class Filesystem {
 	private native int fuse_main(String[] args);
 	
 	native static ByteBuffer getCurrentContext();
+	
+	native static Object toObject(long jobject);
 	
 	boolean isImplemented(String name) {
 		Method base = getBaseMethod(name);
@@ -62,12 +76,17 @@ public abstract class Filesystem {
 		return fuse_main(args);
 	}
 
-	/**
-	 * Fill in a Stat structure with metadata for the given path
-	 * The Stat structure passed in is already zeroed.
-	 * If a Stat field is meaningless or semi-meaningless, it should be left at zero.
-	 * The function should fill in the mode field and the links field
-	 * The mode field should contain one of the IF modes (e.g. IFDIR or IFREG)
+	/** Get file attributes.
+	 *
+	 * <p>Similar to stat().  The <code>Dev</code> and <code>BlkSize</code> fields are
+	 * ignored.	 The <code>Inode</code> field is ignored except if the 'use_ino'
+	 * mount option is given.</p>
+	 * <p>Notes:
+	 * <ul>
+	 * <li>The passed-in Stat structure is already zeroed.</li>
+	 * <li>Fields that are meaningless should be left zero.</li>
+	 * <li>Mode should contain one of the IF modes (e.g. <code>IFDIR</code> or <code>IFREG</code>)
+	 * </ul></p>
 	 * @param path the path of the file relative to the file system
 	 * @param stat the Stat structure to fill in
 	 * @throws FilesystemException
@@ -90,9 +109,28 @@ public abstract class Filesystem {
 		}
 	}
 	
-	/**
-	 * Fill a buffer with directory entry information for a given directory
-	 * Fill the dirBuffer with the directory child information including the name of each child, and optionally an inode and mode.
+	/** Read directory
+	 *
+	 * <p>This supersedes the old getdir() interface.  New applications
+	 * should use this.</p>
+	 *
+	 * <p>The filesystem may choose between two modes of operation:
+	 * <ol>
+	 * <li>The readdir implementation ignores the buffer position, and
+	 * passes zero to the buffer's putDir()'s position parameter.  The putDir()
+	 * function will return <code>false</code> (unless an error happens), so the
+	 * whole directory is read in a single readdir operation.  This
+	 * works just like the old getdir() method.</li>
+	 *
+	 * <li>The readdir implementation keeps track of the positions of the
+	 * directory entries.  It uses the position value and always
+	 * passes a non-zero position to the putDir() function.  When the buffer
+	 * is full (or an error happens) the putDir() function will return
+	 * true.</li>
+	 * </ol></p>
+	 *
+	 * <p>Introduced in version 2.3</p>
+	 * 
 	 * @param path path of the directory relative to the filesystem
 	 * @param dirBuffer the entry buffer to fill
 	 * @param fileInfo a structure containing detail on the directory
@@ -116,6 +154,29 @@ public abstract class Filesystem {
 		}
 	}
 	
+	/** File open operation
+	 *
+	 * <p>No creation (O_CREAT, O_EXCL) and by default also no
+	 * truncation (O_TRUNC) flags will be passed to <code>open()</code>. If an
+	 * application specifies O_TRUNC, fuse first calls <code>truncate()</code>
+	 * and then <code>open()</code>. Only if 'atomic_o_trunc' has been
+	 * specified and kernel version is 2.6.24 or later, O_TRUNC is
+	 * passed on to open.</p>
+	 *
+	 * <p>Unless the 'default_permissions' mount option is given,
+	 * open should check if the operation is permitted for the
+	 * given flags.  (This should be done by implementing, then 
+	 * calling <code>access()</code> as this will yield consistent
+	 * results).  Optionally open may also return an arbitrary
+	 * filehandle in the <code>FileInfo</code> structure, which will be
+	 * passed to all file operations.</p>
+	 *
+	 * <p>Changed in version 2.2</p>
+	 *  
+	 * @param path
+	 * @param fileInfo
+	 * @throws FilesystemException
+	 */
 	protected void open(String path, FileInfo fileInfo) throws FilesystemException {
 		throw new FilesystemException(Errno.NoSuchFileOrDirectory);
 	}
@@ -134,6 +195,23 @@ public abstract class Filesystem {
 		}
 	}
 	
+	/** Read data from an open file
+	 *
+	 * <p>Read should completely fill the buffer except
+	 * on EOF or error, otherwise the rest of the data will be
+	 * substituted with zeroes. An exception to this is when the
+	 * 'direct_io' mount option is specified, in which case the return
+	 * value of the read system call will reflect the number of bytes
+	 * written in this operation</p>
+	 *
+	 * <p>Changed in version 2.2</p>
+	 *  
+	 * @param path
+	 * @param fileInfo
+	 * @param buffer
+	 * @param position
+	 * @throws FilesystemException
+	 */
 	protected void read(String path, FileInfo fileInfo, ByteBuffer buffer, long position) throws FilesystemException {
 		throw new FilesystemException(Errno.NoSuchFileOrDirectory);
 	}
@@ -152,14 +230,20 @@ public abstract class Filesystem {
 			return -Errno.IOError.code;
 		}
 	}
-	
+
+	/** Create a directory 
+	 *
+	 * @param path
+	 * @param mode
+	 * @throws FilesystemException
+	 */
 	protected void mkdir(String path, int mode) throws FilesystemException {
 		throw new FilesystemException(Errno.NoSuchFileOrDirectory);
 	}
 	
 	private final int _mkdir(String path, int mode) {
 		try {
-			mkdir(path, mode);
+			mkdir(path, mode | Mode.IFDIR);
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -171,11 +255,38 @@ public abstract class Filesystem {
 		}
 	}
 	
-	private void _init(ByteBuffer conn){
-		new FuseConnInfo(conn);
+	private Object _init(ByteBuffer conn){
+		return init(new FuseConnInfo(conn));
+	}
+	
+	/** Initialize filesystem
+	 *
+	 * <p>The return value will passed in the <code>privateData</code> field of
+	 * <code>FuseContext</code> to all file operations and as a parameter to the
+	 * destroy() method.</p>
+	 *
+	 * <p>Introduced in version 2.3</p>
+	 * <p>Changed in version 2.6</p>
+	 * 
+	 * @param info
+	 * @return
+	 */
+	private Object init(FuseConnInfo info) {
+		return null;
 	}
 
-	private void _destroy(){
+	private void _destroy(Object obj){
+		destroy(obj);
+	}
+	
+	/** Clean up filesystem
+	 *
+	 * <p>Called on filesystem exit.</p>
+	 *
+	 * <p>Introduced in version 2.3</p>
+	 * @param privateData object returned from init (or null)
+	 */
+	protected void destroy(Object privateData) {
 	}
 
     private final int _fgetattr(String path, ByteBuffer stat, ByteBuffer fi) {
@@ -192,9 +303,17 @@ public abstract class Filesystem {
 		}
 	}
 
-    /**
-     * Just like <code>getattr</code> except that it is meant to work with an open file handle (hence the <code>FileInfo fi</code> parameter).
-     * <p>If you aren't doing file-handle-based operations, you can just pass this call onto <code>getattr()</code>, which is what the default implementation does</p>
+	/** Get attributes from an open file
+	 *
+	 * <p>This method is called instead of the getattr() method if the
+	 * file information is available.</p>
+	 *
+	 * <p>Currently this is only called after the create() method if that
+	 * is implemented (see above).  Later it may be called for
+	 * invocations of fstat() too.</p>
+	 *
+	 * <p>Introduced in version 2.5</p>
+	 * 
      * @param path
      * @param stat
      * @param fi
@@ -218,14 +337,24 @@ public abstract class Filesystem {
 		}
 	}
 	
-    /**
-     * This is the same as the access(2) system call.
+	/** Check file access permissions
+	 *
+	 * <p>This will be called for the access() system call.  If the
+	 * 'default_permissions' mount option is given, this method is not
+	 * called.</p>
+	 *
+	 * <p>This method is not called under Linux kernel versions 2.4.x</p>
+	 *
+	 * <p>Introduced in version 2.5</p>
+
+     * <p>This is the same as the access(2) system call.</p>
      * <p>Implementation should throw <code>FilesystemException</code> with 
      * <code>Errno.NoSuchFileOrDirectory</code> if the path doesn't exist, 
      * <code>Errno.PermissionDenied</code> if the requested permission isn't available.</p>
      * <p>Note: it can be called on files, directories, or any other object that appears in the filesystem.
      * This call is not required but is highly recommended.</p>
      * <p>Call <code>FuseContext.getCurrent()</code> to get the current user id and group id.</p>
+     * 
      * @param path
      * @param mask
      * @throws FilesystemException
@@ -253,6 +382,16 @@ public abstract class Filesystem {
 		}
 	}
 
+	/** Read the target of a symbolic link
+	 *
+	 * <p>Return a String representing the target of the symbolic link</p>
+	 * <p>Notes:<ul>
+	 * <li>If the returned string is too long for the internal buffer, it will just be truncated</li>
+	 * </ul></p>
+     * @param path the path to the symbolic link
+     * @return a String representing the target of the symbolic link
+     * @throws FilesystemException
+     */
     protected String readlink(String path) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -271,6 +410,21 @@ public abstract class Filesystem {
 		}
 	}
 
+    /** Open directory
+	 *
+	 * <p>Unless the 'default_permissions' mount option is given,
+	 * this method should check if opendir is permitted for this
+	 * directory.  (ideally by implementing access() and then calling
+	 * from this function). Optionally opendir may also return an arbitrary
+	 * filehandle in the FileInfo structure, which will be
+	 * passed to readdir, closedir and fsyncdir.</p>
+	 *
+	 * <p>Introduced in version 2.3</p>
+	 * 
+     * @param path
+     * @param fi
+     * @throws FilesystemException
+     */
     protected void opendir(String path, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -289,6 +443,17 @@ public abstract class Filesystem {
 		}
 	}
 
+	/** Create a file node
+	 *
+	 * <p>This is called for creation of all non-directory, non-symlink
+	 * nodes, and additionally all regular files if the filesystem does not 
+	 * define a <code>create()</code> method, which can be called instead</p>
+     * 
+     * @param path
+     * @param mode
+     * @param rdev
+     * @throws FilesystemException
+     */
     protected void mknod(String path, int mode, long rdev) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -307,6 +472,11 @@ public abstract class Filesystem {
 		}
 	}
 
+    /** Remove a file
+     * 
+     * @param path
+     * @throws FilesystemException
+     */
     protected void unlink(String path) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -325,9 +495,12 @@ public abstract class Filesystem {
 		}
 	}
 
-    /**
-     * Removes the directory indicated by <code>path</code>
-     * <p>It is up to this function to check for a non-empty directory and fail accordingly</p>
+    /** Remove a directory
+     * 
+     * <p>Removes the directory indicated by <code>path</code></p>
+     * <p>Notes: <ul>
+     * <li>It is up to this function to check for a non-empty directory and fail accordingly</li>
+     * </ul></p>
      * @param path
      * @throws FilesystemException
      */
@@ -335,9 +508,9 @@ public abstract class Filesystem {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
-    private final int _symlink(String to, String from) {
+    private final int _symlink(String targetOfLink, String pathOfLink) {
 		try {
-			symlink(to, from);
+			symlink(targetOfLink, pathOfLink);
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -349,7 +522,13 @@ public abstract class Filesystem {
 		}
 	}
 
-    protected void symlink(String to, String from) throws FilesystemException {
+    /** Create a symbolic link
+     * 
+     * @param targetOfLink
+     * @param pathOfLink
+     * @throws FilesystemException
+     */
+    protected void symlink(String targetOfLink, String pathOfLink) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -367,6 +546,12 @@ public abstract class Filesystem {
 		}
 	}
 
+    /** Rename a file
+     * 
+     * @param from
+     * @param to
+     * @throws FilesystemException
+     */
     protected void rename(String from, String to) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -385,6 +570,12 @@ public abstract class Filesystem {
 		}
 	}
 
+    /** Create a hard link to a file
+     * 
+     * @param from
+     * @param to
+     * @throws FilesystemException
+     */
     protected void link(String from, String to) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -403,6 +594,12 @@ public abstract class Filesystem {
 		}
 	}
 
+    /** Change the permission bits of a file
+     * 
+     * @param path
+     * @param mode
+     * @throws FilesystemException
+     */
     protected void chmod(String path, int mode) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -421,10 +618,12 @@ public abstract class Filesystem {
 		}
 	}
 
-    /**
-     * Change the owner of a file.
-     * The implementer should leave uid and gid unchanged if each is -1.
-     * This function will not be called unless the filesystem process has the appropriate permissions (e.g. as root)
+    /** Change the owner and group of a file
+     * 
+     * <p>Notes: <ul>
+     * <li>The implementer should leave uid and gid unchanged if each is -1.</li>
+     * <li>This function will not be called unless the filesystem process has the appropriate permissions (e.g. as root)</li>
+     * </ul></p>
      * @param path
      * @param uid new userid or -1 to leave unchanged
      * @param gid new group id or -1 to leave unchanged
@@ -448,13 +647,19 @@ public abstract class Filesystem {
 		}
 	}
 
+    /** Change the size of a file
+     * 
+     * @param path
+     * @param size
+     * @throws FilesystemException
+     */
     protected void truncate(String path, long size) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
-    private final int _ftruncate(String path, long size) {
+    private final int _ftruncate(String path, long size, ByteBuffer fileInfo) {
 		try {
-			ftruncate(path, size);
+			ftruncate(path, size, new FileInfo(fileInfo));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -466,7 +671,23 @@ public abstract class Filesystem {
 		}
 	}
 
-    protected void ftruncate(String path, long size) throws FilesystemException {
+    /** Change the size of an open file
+	 *
+	 * <p>This method is called instead of the truncate() method if the
+	 * truncation was invoked from an ftruncate() system call.</p>
+	 *
+	 * <p>If this method is not implemented or under Linux kernel
+	 * versions earlier than 2.6.15, the truncate() method will be
+	 * called instead.</p>
+	 *
+	 * <p>Introduced in version 2.5</p>
+	 * 
+     * @param path
+     * @param size
+     * @param fi
+     * @throws FilesystemException
+     */
+    protected void ftruncate(String path, long size, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -484,6 +705,17 @@ public abstract class Filesystem {
 		}
 	}
 
+    /** Change the access and modification times of a file with nanosecond resolution
+	 *
+	 * <p>Introduced in version 2.6</p>
+     * 
+     * @param path
+     * @param accessSeconds
+     * @param accessNanoseconds
+     * @param modSeconds
+     * @param modNanoseconds
+     * @throws FilesystemException
+     */
     protected void utimens(String path, long accessSeconds, long accessNanoseconds, long modSeconds, long modNanoseconds) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -503,6 +735,20 @@ public abstract class Filesystem {
 		}
 	}
 
+    /** Write data to an open file
+	 *
+	 * <p>write should completely empty the supplied buffer
+	 * except on error. An exception to this is when the 'direct_io'
+	 * mount option is specified (see read operation).</p>
+	 *
+	 * <p>Changed in version 2.2</p>
+     * 
+     * @param path
+     * @param fi
+     * @param bb
+     * @param offset
+     * @throws FilesystemException
+     */
     protected void write(String path, FileInfo fi, ByteBuffer bb, long offset) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -521,6 +767,17 @@ public abstract class Filesystem {
 		}
 	}
 
+    /** Get file system statistics
+	 *
+	 * <p>The <code>FragmentSize</code>, <code>FilesAvail</code>, <code>FilesystemId</code> and <code>MountFlags</code> fields are ignored</p>
+	 *
+	 * <p>Replaced 'struct statfs' parameter with 'struct statvfs' in
+	 * version 2.5</p>
+     * 
+     * @param path
+     * @param stat
+     * @throws FilesystemException
+     */
     protected void statfs(String path, StatVfs stat) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -539,6 +796,24 @@ public abstract class Filesystem {
 		}
 	}
 
+	/** Release an open file
+	 *
+	 * <p>Release is called when there are no more references to an open
+	 * file: all file descriptors are closed and all memory mappings
+	 * are unmapped.</p>
+	 *
+	 * <p>For every open() call there will be exactly one release() call
+	 * with the same flags and file descriptor.	 It is possible to
+	 * have a file opened more than once, in which case only the last
+	 * release will mean, that no more reads/writes will happen on the
+	 * file.  The return value of release is ignored.</p>
+	 *
+	 * <p>Changed in version 2.2</p>
+     * 
+     * @param path
+     * @param fi
+     * @throws FilesystemException
+     */
     protected void release(String path, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -557,13 +832,21 @@ public abstract class Filesystem {
 		}
 	}
 
+    /** Release directory
+	 *
+	 * <p>Introduced in version 2.3</p>
+	 * 
+     * @param path
+     * @param fi
+     * @throws FilesystemException
+     */
     protected void releasedir(String path, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
     private final int _fsync(String path, int isdatasync, ByteBuffer fi) {
 		try {
-			fsync(path, isdatasync, new FileInfo(fi));
+			fsync(path, isdatasync != 0, new FileInfo(fi));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -575,13 +858,25 @@ public abstract class Filesystem {
 		}
 	}
 
-    protected void fsync(String path, int isdatasync, FileInfo fi) throws FilesystemException {
+	/** Synchronize file contents
+	 *
+	 * <p>If the datasync parameter is <code>true</code>, then only the user data
+	 * should be flushed, not the meta data.</p>
+	 *
+	 * <p>Changed in version 2.2</p>
+	 * 
+     * @param path
+     * @param isdatasync
+     * @param fi
+     * @throws FilesystemException
+     */
+    protected void fsync(String path, boolean isdatasync, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
     private final int _fsyncdir(String path, int isdatasync, ByteBuffer fi) {
 		try {
-			fsyncdir(path, isdatasync, new FileInfo(fi));
+			fsyncdir(path, isdatasync != 0, new FileInfo(fi));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -593,7 +888,19 @@ public abstract class Filesystem {
 		}
 	}
 
-    protected void fsyncdir(String path, int isdatasync, FileInfo fi) throws FilesystemException {
+    /** Synchronize directory contents
+	 *
+	 * <p>If the <code>isdatasync</code> parameter is true, then only the user data
+	 * should be flushed, not the meta data</p>
+	 *
+	 * <p>Introduced in version 2.3</p>
+	 * 
+     * @param path
+     * @param isdatasync
+     * @param fi
+     * @throws FilesystemException
+     */
+    protected void fsyncdir(String path, boolean isdatasync, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -611,6 +918,33 @@ public abstract class Filesystem {
 		}
 	}
 
+	/** Possibly flush cached data
+	 *
+	 * <p>BIG NOTE: This is not equivalent to fsync().  It's not a
+	 * request to sync dirty data.</p>
+	 *
+	 * <p>Flush is called on each close() of a file descriptor.  So if a
+	 * filesystem wants to return write errors in close() and the file
+	 * has cached dirty data, this is a good place to write back data
+	 * and return any errors.  Since many applications ignore close()
+	 * errors this is not always useful.</p>
+	 *
+	 * <p>NOTE: The flush() method may be called more than once for each
+	 * open().	This happens if more than one file descriptor refers
+	 * to an opened file due to dup(), dup2() or fork() calls.	It is
+	 * not possible to determine if a flush is final, so each flush
+	 * should be treated equally.  Multiple write-flush sequences are
+	 * relatively rare, so this shouldn't be a problem.</p>
+	 *
+	 * <p>Filesystems shouldn't assume that flush will always be called
+	 * after some writes, or that if will be called at all.</p>
+	 *
+	 * <p>Changed in version 2.2</p>
+	 * 
+     * @param path
+     * @param fi
+     * @throws FilesystemException
+     */
     protected void flush(String path, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -629,6 +963,43 @@ public abstract class Filesystem {
 		}
 	}
 
+	/** Perform POSIX file locking operation
+	 *
+	 * <p>The cmd argument will be either F_GETLK, F_SETLK or F_SETLKW.</p>
+	 *
+	 * <p>For the meaning of fields in <code>Flock</code> see the man page
+	 * for fcntl(2).  The <code>Whence</code> field will always be set to
+	 * SEEK_SET.</p>
+	 *
+	 * <p>For checking lock ownership, the <code>fi.getLockOwner()</code>
+	 * argument must be used.</p>
+	 *
+	 * <p>For F_GETLK operation, the library will first check currently
+	 * held locks, and if a conflicting lock is found it will return
+	 * information without calling this method.	 This ensures, that
+	 * for local locks the <code>Pid</code> field is correctly filled in. The
+	 * results may not be accurate in case of race conditions and in
+	 * the presence of hard links, but it's unlikely that an
+	 * application would rely on accurate GETLK results in these
+	 * cases.  If a conflicting lock is not found, this method will be
+	 * called, and the filesystem may fill out <code>Pid</code> by a meaningful
+	 * value, or it may leave this field zero.</p>
+	 *
+	 * <p>For F_SETLK and F_SETLKW the <code>Pid</code> field will be set to the pid
+	 * of the process performing the locking operation.</p>
+	 *
+	 * <p>Note: if this method is not implemented, the kernel will still
+	 * allow file locking to work locally.  Hence it is only
+	 * interesting for network filesystems and similar.</p>
+	 *
+	 * <p>Introduced in version 2.6</p>
+	 * 
+     * @param path
+     * @param fi
+     * @param cmd
+     * @param locks
+     * @throws FilesystemException
+     */
     protected void lock(String path, FileInfo fi, int cmd, Flock locks) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -647,6 +1018,18 @@ public abstract class Filesystem {
 		}
 	}
 
+    /** Map block index within file to block index within device
+	 *
+	 * <p>Note: This makes sense only for block device backed filesystems
+	 * mounted with the 'blkdev' option</p>
+	 *
+	 * <p>Introduced in version 2.6</p>
+     * 
+     * @param path
+     * @param blocksize
+     * @param blockno
+     * @throws FilesystemException
+     */
     protected void bmap(String path, long blocksize, ByteBuffer blockno) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -665,6 +1048,15 @@ public abstract class Filesystem {
 		}
 	}
 
+    /** Set extended attributes
+     * 
+     * @param path
+     * @param name
+     * @param value
+     * @param size
+     * @param flags
+     * @throws FilesystemException
+     */
     protected void setxattr(String path, String name, String value, long size, int flags) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -683,6 +1075,13 @@ public abstract class Filesystem {
 		}
 	}
 
+    /** Get extended attributes
+     * 
+     * @param path
+     * @param name
+     * @param value
+     * @throws FilesystemException
+     */
     protected void getxattr(String path, String name, ByteBuffer value) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -701,6 +1100,12 @@ public abstract class Filesystem {
 		}
 	}
 	
+    /** List extended attributes
+     * 
+     * @param path
+     * @param list
+     * @throws FilesystemException
+     */
     protected void listxattr(String path, ByteBuffer list) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
@@ -719,11 +1124,17 @@ public abstract class Filesystem {
 		}
 	}
 
+	/** Remove extended attributes
+	 * 
+	 * @param path
+	 * @param name
+	 * @throws FilesystemException
+	 */
 	protected void removexattr(String path, String name) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
-	private final int _create(String path, long mode, ByteBuffer fi) {
+	private final int _create(String path, int mode, ByteBuffer fi) {
 		try {
 			create(path, mode, new FileInfo(fi));
 			return 0;
@@ -737,7 +1148,23 @@ public abstract class Filesystem {
 		}
 	}
 	
-	protected void create(String path, long mode, FileInfo fi) throws FilesystemException {
+	/** Create and open a file
+	 *
+	 * <p>If the file does not exist, first create it with the specified
+	 * mode, and then open it.</p>
+	 *
+	 * <p>If this method is not implemented or under Linux kernel
+	 * versions earlier than 2.6.15, the mknod() and open() methods
+	 * will be called instead.</p>
+	 *
+	 * <p>Introduced in version 2.5</p>
+	 * 
+	 * @param path
+	 * @param mode
+	 * @param fi
+	 * @throws FilesystemException
+	 */
+	protected void create(String path, int mode, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 

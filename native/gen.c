@@ -118,6 +118,7 @@ int main(int argc, char *argv[]) {
     dumpRoField("FuseContext", "UserId", struct fuse_context, uid, "User ID of the calling process");
     dumpRoField("FuseContext", "GroupId", struct fuse_context, gid, "Group ID of the calling process");
     dumpRoField("FuseContext", "ProcessId", struct fuse_context, pid, "Thread ID of the calling process");
+    dumpRoField("FuseContext", "PrivateData", struct fuse_context, private_data, "Private data returned from init()");
     dumpRoField("FuseContext", "UMask", struct fuse_context, umask, "Umask of the calling process (introduced in version 2.8)");
     printf("}\n\n");
 

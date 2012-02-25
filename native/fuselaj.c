@@ -1,4 +1,4 @@
-#define FUSE_USE_VERSION 26
+#define FUSE_USE_VERSION 28
 
 #include <stdlib.h>
 #include <time.h>
@@ -15,7 +15,8 @@
 
 #define WRAPBUFFER(buf,size) (*env)->NewDirectByteBuffer(env, (void*)buf, size)
 #define WRAPSTRUCT(buf,type) WRAPBUFFER(buf,sizeof(type))
-#define JSTRING(str) (*env)->NewStringUTF(env, str)
+#define JSTRING(str) (str ? (*env)->NewStringUTF(env, str) : NULL)
+#define DELETELOCAL(obj) if (obj) (*env)->DeleteLocalRef(env, obj)
 
 // Use the following structure for global variables
 struct fuselaj_struct {
@@ -47,6 +48,12 @@ static JNIEnv* get_env() {
 	return env;
 }
 
+jobject to_global(JNIEnv *env, jobject obj) {
+	jobject global = (*env)->NewGlobalRef(env, obj);
+	DELETELOCAL(obj);
+	return global;
+}
+
 static struct threadlocal_struct *get_threadlocal() {
 	// if thread local has not been initialized yet, initialize it
 	if (threadlocal == NULL) {
@@ -64,8 +71,8 @@ static int fuselaj_getattr(const char *path, struct stat *stbuf) {
 	jstring jpath = JSTRING(path);
 	jobject stat = WRAPSTRUCT(stbuf, struct stat);
 	jint jret = Filesystem_call__getattr(env, fuselaj.jvmfsimpl, jpath, stat);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, stat);
+	DELETELOCAL(jpath);
+	DELETELOCAL(stat);
 
 	return jret;
 }
@@ -81,9 +88,9 @@ static int fuselaj_readdir(const char *path, void *buf, fuse_fill_dir_t filler, 
 	jobject db = DirBuffer_Create(env, (jlong)buf, (jlong)filler, offset);
 	jobject jfi = WRAPSTRUCT(fi, struct fuse_file_info);
 	jint jret = Filesystem_call__readdir(env, fuselaj.jvmfsimpl, jpath, db, jfi);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, db);
-	(*env)->DeleteLocalRef(env, jfi);
+	DELETELOCAL(jpath);
+	DELETELOCAL(db);
+	DELETELOCAL(jfi);
 
 	return jret;
 }
@@ -95,8 +102,8 @@ static int fuselaj_open(const char *path, struct fuse_file_info *fi) {
 	jstring jpath = JSTRING(path);
 	jobject jfi = WRAPSTRUCT(fi, struct fuse_file_info);
 	jint jret = Filesystem_call__open(env, fuselaj.jvmfsimpl, jpath, jfi);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jfi);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jfi);
 
 	return jret;
 }
@@ -109,9 +116,9 @@ static int fuselaj_read(const char* path, char *buf, size_t size, off_t offset, 
 	jobject fb = WRAPBUFFER(buf, size);
 	jobject jfi = WRAPSTRUCT(fi, struct fuse_file_info);
 	jint jret = Filesystem_call__read(env, fuselaj.jvmfsimpl, jpath, jfi, fb, offset);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, fb);
-	(*env)->DeleteLocalRef(env, jfi);
+	DELETELOCAL(jpath);
+	DELETELOCAL(fb);
+	DELETELOCAL(jfi);
 
 	return jret;
 }
@@ -122,7 +129,7 @@ static int fuselaj_mkdir(const char* path, mode_t mode) {
 
 	jstring jpath = JSTRING(path);
 	jint jret = Filesystem_call__mkdir(env, fuselaj.jvmfsimpl, jpath, mode);
-	(*env)->DeleteLocalRef(env, jpath);
+	DELETELOCAL(jpath);
 
 	return jret;
 }
@@ -132,9 +139,11 @@ void* fuselaj_init(struct fuse_conn_info *conn){
 	env = get_env();
 
 	jobject jconn = WRAPSTRUCT(conn, struct fuse_conn_info);
-	Filesystem_call__init(env, fuselaj.jvmfsimpl, jconn);
-	(*env)->DeleteLocalRef(env, jconn);
+	jobject jprivdata = Filesystem_call__init(env, fuselaj.jvmfsimpl, jconn);
+	DELETELOCAL(jconn);
 
+	if (jprivdata != NULL)
+		return (void*)to_global(env, jprivdata);
 	return NULL;
 }
 
@@ -142,7 +151,7 @@ void fuselaj_destroy(void* private_data){
 	JNIEnv* env;
 	env = get_env();
 
-	Filesystem_call__destroy(env, fuselaj.jvmfsimpl);
+	Filesystem_call__destroy(env, fuselaj.jvmfsimpl, (jobject)private_data);
 }
 
 int fuselaj_fgetattr(const char *path, struct stat *stbuf, struct fuse_file_info *fi){
@@ -153,9 +162,9 @@ int fuselaj_fgetattr(const char *path, struct stat *stbuf, struct fuse_file_info
 	jobject jstat = WRAPSTRUCT(stbuf, struct stat);
 	jobject jfi = WRAPSTRUCT(fi, struct fuse_file_info);
 	jint jret = Filesystem_call__fgetattr(env, fuselaj.jvmfsimpl, jpath, jstat, jfi);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jstat);
-	(*env)->DeleteLocalRef(env, jfi);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jstat);
+	DELETELOCAL(jfi);
 
 	return jret;
 }
@@ -166,7 +175,7 @@ int fuselaj_access(const char* path, int mask){
 
 	jstring jpath = JSTRING(path);
 	jint jret = Filesystem_call__access(env, fuselaj.jvmfsimpl, jpath, mask);
-	(*env)->DeleteLocalRef(env, jpath);
+	DELETELOCAL(jpath);
 
 	return jret;
 }
@@ -178,8 +187,8 @@ int fuselaj_readlink(const char* path, char* buf, size_t size){
 	jstring jpath = JSTRING(path);
 	jobject bb = WRAPBUFFER(buf, size * sizeof(char));
 	jint jret = Filesystem_call__readlink(env, fuselaj.jvmfsimpl, jpath, bb);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, bb);
+	DELETELOCAL(jpath);
+	DELETELOCAL(bb);
 
 	return jret;
 }
@@ -191,8 +200,8 @@ int fuselaj_opendir(const char* path, struct fuse_file_info* fi){
 	jstring jpath = JSTRING(path);
 	jobject jfi = WRAPSTRUCT(fi, struct fuse_file_info);
 	jint jret = Filesystem_call__opendir(env, fuselaj.jvmfsimpl, jpath, jfi);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jfi);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jfi);
 
 	return jret;
 }
@@ -203,7 +212,7 @@ int fuselaj_mknod(const char* path, mode_t mode, dev_t rdev){
 
 	jstring jpath = JSTRING(path);
 	jint jret = Filesystem_call__mknod(env, fuselaj.jvmfsimpl, jpath, mode, rdev);
-	(*env)->DeleteLocalRef(env, jpath);
+	DELETELOCAL(jpath);
 
 	return jret;
 }
@@ -214,7 +223,7 @@ int fuselaj_unlink(const char* path){
 
 	jstring jpath = JSTRING(path);
 	jint jret = Filesystem_call__unlink(env, fuselaj.jvmfsimpl, jpath);
-	(*env)->DeleteLocalRef(env, jpath);
+	DELETELOCAL(jpath);
 
 	return jret;
 }
@@ -225,20 +234,20 @@ int fuselaj_rmdir(const char* path){
 
 	jstring jpath = JSTRING(path);
 	jint jret = Filesystem_call__rmdir(env, fuselaj.jvmfsimpl, jpath);
-	(*env)->DeleteLocalRef(env, jpath);
+	DELETELOCAL(jpath);
 
 	return jret;
 }
 
-int fuselaj_symlink(const char* to, const char* from){
+int fuselaj_symlink(const char* oldpath, const char* newpath){
 	JNIEnv* env;
 	env = get_env();
 
-	jstring jfrom = JSTRING(from);
-	jstring jto = JSTRING(to);
-	jint jret = Filesystem_call__symlink(env, fuselaj.jvmfsimpl, jfrom, jto);
-	(*env)->DeleteLocalRef(env, jfrom);
-	(*env)->DeleteLocalRef(env, jto);
+	jstring joldpath = JSTRING(oldpath);
+	jstring jnewpath = JSTRING(newpath);
+	jint jret = Filesystem_call__symlink(env, fuselaj.jvmfsimpl, joldpath, jnewpath);
+	DELETELOCAL(joldpath);
+	DELETELOCAL(jnewpath);
 
 	return jret;
 }
@@ -250,8 +259,8 @@ int fuselaj_rename(const char* from, const char* to){
 	jstring jfrom = JSTRING(from);
 	jstring jto = JSTRING(to);
 	jint jret = Filesystem_call__rename(env, fuselaj.jvmfsimpl, jfrom, jto);
-	(*env)->DeleteLocalRef(env, jfrom);
-	(*env)->DeleteLocalRef(env, jto);
+	DELETELOCAL(jfrom);
+	DELETELOCAL(jto);
 
 	return jret;
 }
@@ -263,8 +272,8 @@ int fuselaj_link(const char* from, const char* to){
 	jstring jfrom = JSTRING(from);
 	jstring jto = JSTRING(to);
 	jint jret = Filesystem_call__link(env, fuselaj.jvmfsimpl, jfrom, jto);
-	(*env)->DeleteLocalRef(env, jfrom);
-	(*env)->DeleteLocalRef(env, jto);
+	DELETELOCAL(jfrom);
+	DELETELOCAL(jto);
 
 	return jret;
 }
@@ -275,7 +284,7 @@ int fuselaj_chmod(const char* path, mode_t mode){
 
 	jstring jpath = JSTRING(path);
 	jint jret = Filesystem_call__chmod(env, fuselaj.jvmfsimpl, jpath, mode);
-	(*env)->DeleteLocalRef(env, jpath);
+	DELETELOCAL(jpath);
 
 	return jret;
 }
@@ -286,7 +295,7 @@ int fuselaj_chown(const char* path, uid_t uid, gid_t gid){
 
 	jstring jpath = JSTRING(path);
 	jint jret = Filesystem_call__chown(env, fuselaj.jvmfsimpl, jpath, uid, gid);
-	(*env)->DeleteLocalRef(env, jpath);
+	DELETELOCAL(jpath);
 
 	return jret;
 }
@@ -297,7 +306,7 @@ int fuselaj_truncate(const char* path, off_t size){
 
 	jstring jpath = JSTRING(path);
 	jint jret = Filesystem_call__truncate(env, fuselaj.jvmfsimpl, jpath, size);
-	(*env)->DeleteLocalRef(env, jpath);
+	DELETELOCAL(jpath);
 
 	return jret;
 }
@@ -308,9 +317,9 @@ int fuselaj_ftruncate(const char* path, off_t size, struct fuse_file_info *fi){
 
 	jstring jpath = JSTRING(path);
 	jobject jfi = WRAPSTRUCT(fi, struct fuse_file_info);
-	jint jret = Filesystem_call__ftruncate(env, fuselaj.jvmfsimpl, jpath, size);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jfi);
+	jint jret = Filesystem_call__ftruncate(env, fuselaj.jvmfsimpl, jpath, size, jfi);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jfi);
 
 	return jret;
 }
@@ -321,7 +330,7 @@ int fuselaj_utimens(const char* path, const struct timespec ts[2]){
 
 	jstring jpath = JSTRING(path);
 	jint jret = Filesystem_call__utimens(env, fuselaj.jvmfsimpl, jpath, ts[0].tv_sec, ts[0].tv_nsec, ts[1].tv_sec, ts[1].tv_nsec);
-	(*env)->DeleteLocalRef(env, jpath);
+	DELETELOCAL(jpath);
 
 	return jret;
 }
@@ -334,9 +343,9 @@ int fuselaj_write(const char* path, const char *buf, size_t size, off_t offset, 
 	jobject fb = WRAPBUFFER(buf, size);
 	jobject jfi = WRAPSTRUCT(fi, struct fuse_file_info);
 	jint jret = Filesystem_call__write(env, fuselaj.jvmfsimpl, jpath, jfi, fb, offset);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, fb);
-	(*env)->DeleteLocalRef(env, jfi);
+	DELETELOCAL(jpath);
+	DELETELOCAL(fb);
+	DELETELOCAL(jfi);
 
 	return jret;
 }
@@ -348,8 +357,8 @@ int fuselaj_statfs(const char* path, struct statvfs* stbuf){
 	jstring jpath = JSTRING(path);
 	jobject statvfs = WRAPSTRUCT(stbuf, struct statvfs);
 	jint jret = Filesystem_call__statfs(env, fuselaj.jvmfsimpl, jpath, statvfs);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, statvfs);
+	DELETELOCAL(jpath);
+	DELETELOCAL(statvfs);
 
 	return jret;
 }
@@ -361,8 +370,8 @@ int fuselaj_release(const char* path, struct fuse_file_info *fi){
 	jstring jpath = JSTRING(path);
 	jobject jfi = WRAPSTRUCT(fi, struct fuse_file_info);
 	jint jret = Filesystem_call__release(env, fuselaj.jvmfsimpl, jpath, jfi);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jfi);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jfi);
 
 	return jret;
 }
@@ -374,8 +383,8 @@ int fuselaj_releasedir(const char* path, struct fuse_file_info *fi){
 	jstring jpath = JSTRING(path);
 	jobject jfi = WRAPSTRUCT(fi, struct fuse_file_info);
 	jint jret = Filesystem_call__releasedir(env, fuselaj.jvmfsimpl, jpath, jfi);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jfi);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jfi);
 
 	return jret;
 }
@@ -387,8 +396,8 @@ int fuselaj_fsync(const char* path, int isdatasync, struct fuse_file_info* fi){
 	jstring jpath = JSTRING(path);
 	jobject jfi = WRAPSTRUCT(fi, struct fuse_file_info);
 	jint jret = Filesystem_call__fsync(env, fuselaj.jvmfsimpl, jpath, isdatasync, jfi);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jfi);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jfi);
 
 	return jret;
 }
@@ -400,8 +409,8 @@ int fuselaj_fsyncdir(const char* path, int isdatasync, struct fuse_file_info* fi
 	jstring jpath = JSTRING(path);
 	jobject jfi = WRAPSTRUCT(fi, struct fuse_file_info);
 	jint jret = Filesystem_call__fsyncdir(env, fuselaj.jvmfsimpl, jpath, isdatasync, jfi);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jfi);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jfi);
 
 	return jret;
 }
@@ -413,8 +422,8 @@ int fuselaj_flush(const char* path, struct fuse_file_info* fi){
 	jstring jpath = JSTRING(path);
 	jobject jfi = WRAPSTRUCT(fi, struct fuse_file_info);
 	jint jret = Filesystem_call__flush(env, fuselaj.jvmfsimpl, jpath, jfi);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jfi);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jfi);
 
 	return jret;
 }
@@ -427,9 +436,9 @@ int fuselaj_lock(const char* path, struct fuse_file_info* fi, int cmd, struct fl
 	jobject jfi = WRAPSTRUCT(fi, struct fuse_file_info);
 	jobject jlocks = WRAPSTRUCT(locks, struct flock*);
 	jint jret = Filesystem_call__lock(env, fuselaj.jvmfsimpl, jpath, jfi, cmd, jlocks);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jfi);
-	(*env)->DeleteLocalRef(env, jlocks);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jfi);
+	DELETELOCAL(jlocks);
 
 	return jret;
 }
@@ -441,8 +450,8 @@ int fuselaj_bmap(const char* path, size_t blocksize, uint64_t* blockno){
 	jstring jpath = JSTRING(path);
 	jobject jblockno = WRAPSTRUCT(blockno, uint64_t);
 	jint jret = Filesystem_call__bmap(env, fuselaj.jvmfsimpl, jpath, blocksize, jblockno);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jblockno);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jblockno);
 
 	return jret;
 }
@@ -455,9 +464,9 @@ int fuselaj_setxattr(const char* path, const char* name, const char* value, size
 	jstring jname = JSTRING(name);
 	jobject jvalue = WRAPSTRUCT(value, size);
 	jint jret = Filesystem_call__setxattr(env, fuselaj.jvmfsimpl, jpath, jname, jvalue, size, flags);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jname);
-	(*env)->DeleteLocalRef(env, jvalue);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jname);
+	DELETELOCAL(jvalue);
 
 	return jret;
 }
@@ -470,9 +479,9 @@ int fuselaj_getxattr(const char* path, const char* name, char* value, size_t siz
 	jstring jname = JSTRING(name);
 	jobject jvalue = WRAPBUFFER(value, size);
 	jint jret = Filesystem_call__getxattr(env, fuselaj.jvmfsimpl, jpath, jname, jvalue);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jname);
-	(*env)->DeleteLocalRef(env, jvalue);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jname);
+	DELETELOCAL(jvalue);
 
 	return jret;
 }
@@ -484,8 +493,8 @@ int fuselaj_listxattr(const char* path, char* list, size_t size){
 	jstring jpath = JSTRING(path);
 	jobject jlist = WRAPBUFFER(list, size * sizeof(char));
 	jint jret = Filesystem_call__listxattr(env, fuselaj.jvmfsimpl, jpath, jlist);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jlist);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jlist);
 
 	return jret;
 }
@@ -497,8 +506,8 @@ int fuselaj_removexattr(const char* path, const char* list){
 	jstring jpath = JSTRING(path);
 	jobject jlist = JSTRING(list);
 	jint jret = Filesystem_call__removexattr(env, fuselaj.jvmfsimpl, jpath, jlist);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jlist);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jlist);
 
 	return jret;
 }
@@ -510,8 +519,8 @@ int fuselaj_create(const char * path, mode_t mode, struct fuse_file_info *fi) {
 	jstring jpath = JSTRING(path);
 	jobject jfi = WRAPSTRUCT(fi, struct fuse_file_info);
 	jint jret = Filesystem_call__create(env, fuselaj.jvmfsimpl, jpath, mode, jfi);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jfi);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jfi);
 
 	return jret;
 }
@@ -523,7 +532,7 @@ int fuselaj_ioctl(const char* path, int cmd, void* arg, struct fuse_file_info* f
 
 	jstring jpath = JSTRING(path);
 	jint jret = Filesystem_call__ioctl(env, fuselaj.jvmfsimpl, jpath, cmd, ...);
-	(*env)->DeleteLocalRef(env, jpath);
+	DELETELOCAL(jpath);
 
 	return jret;
 }
@@ -537,8 +546,8 @@ int fuselaj_poll(const char* path, struct fuse_file_info* fi, struct fuse_pollha
 	jstring jpath = JSTRING(path);
 	jobject jfi = WRAPSTRUCT(fi, struct fuse_file_info);
 	jint jret = Filesystem_call__poll(env, fuselaj.jvmfsimpl, jpath, jfi, ...);
-	(*env)->DeleteLocalRef(env, jpath);
-	(*env)->DeleteLocalRef(env, jfi);
+	DELETELOCAL(jpath);
+	DELETELOCAL(jfi);
 
 	return jret;
 }
@@ -548,18 +557,12 @@ int fuselaj_poll(const char* path, struct fuse_file_info* fi, struct fuse_pollha
 static struct fuse_operations fuselaj_operations = {
 };
 
-jobject to_global(JNIEnv *env, jobject obj) {
-	jobject global = (*env)->NewGlobalRef(env, obj);
-	(*env)->DeleteLocalRef(env, obj);
-	return global;
-}
-
 static int is_implemented(JNIEnv *env, jobject obj, const char* name) {
 	jstring jname = JSTRING(name);
 	jboolean rval = Filesystem_call_isImplemented(env, obj, jname);
 	if (rval)
 		printf("  -> %s\n", name);
-	(*env)->DeleteLocalRef(env, jname);
+	DELETELOCAL(jname);
 	return rval;
 }
 
@@ -615,6 +618,8 @@ JNIEXPORT void JNICALL Java_warrenfalk_fuselaj_Filesystem_initialize (JNIEnv *en
 	fuselaj_operations.create = is_implemented(env, fuselaj.jvmfsimpl, "create") ? fuselaj_create : 0;
 	//fuselaj_operations.ioctl = is_implemented(env, fuselaj.jvmfsimpl, "ioctl") ? fuselaj_ioctl : 0;
 	//fuselaj_operations.poll = is_implemented(env, fuselaj.jvmfsimpl, "poll") ? fuselaj_poll : 0;
+
+	fuselaj_operations.flag_nullpath_ok = Filesystem_get_nullPathsOk(env, fuselaj.jvmfsimpl);
 
 }
 
@@ -680,4 +685,9 @@ JNIEXPORT jobject JNICALL Java_warrenfalk_fuselaj_Filesystem_getCurrentContext (
 	struct fuse_context *context = fuse_get_context();
 	jobject jcontext = to_global(env, WRAPSTRUCT(context, struct fuse_context));
 	return jcontext;
+}
+
+
+JNIEXPORT jobject JNICALL Java_warrenfalk_fuselaj_Filesystem_toObject (JNIEnv *env, jclass fsclass, jlong pointer) {
+	return (jobject)pointer;
 }
