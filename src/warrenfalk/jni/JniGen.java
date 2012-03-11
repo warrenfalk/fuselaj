@@ -54,7 +54,7 @@ public class JniGen {
 						if (Modifier.isNative(method.getModifiers()))
 							continue;
 						String signature = getSig(method);
-						writer.println("\t" + getUniqueMethodName(method.getName(), method.getParameterTypes()) + "_method = (*env)->GetMethodID(env, Class, \"" + method.getName() + "\", \"" + signature + "\");");
+						writer.println("\t" + getUniqueMethodName(method.getName(), method.getParameterTypes()) + "_method = (*env)->Get" + (Modifier.isStatic(method.getModifiers()) ? "Static" : "") + "MethodID(env, Class, \"" + method.getName() + "\", \"" + signature + "\");");
 						writer.println("\tassert (" + getUniqueMethodName(method.getName(), method.getParameterTypes()) + "_method != 0);");
 					}
 					writer.println("}");
@@ -84,7 +84,7 @@ public class JniGen {
 						String paramNameList = getParamNameList(method);
 						writer.println("");
 						writer.println(getJniType(method.getReturnType()) + " " + className + "_call_" + getUniqueMethodName(method.getName(), method.getParameterTypes()) + "(JNIEnv* env, jobject obj" + paramList + ") {");
-						writer.println("\treturn (*env)->Call" + getCallType(method.getReturnType()) + "Method(env, obj, " + getUniqueMethodName(method.getName(), method.getParameterTypes()) + "_method" + paramNameList + ");");
+						writer.println("\treturn (*env)->Call" + (Modifier.isStatic(method.getModifiers()) ? "Static" : "") + getCallType(method.getReturnType()) + "Method(env, obj, " + getUniqueMethodName(method.getName(), method.getParameterTypes()) + "_method" + paramNameList + ");");
 						writer.println("}");
 					}
 				}
