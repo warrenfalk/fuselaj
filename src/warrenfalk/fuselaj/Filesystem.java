@@ -71,7 +71,17 @@ public abstract class Filesystem {
 	}
 
 	public int run(String[] args) {
-		System.loadLibrary("fuselaj");
+		try {
+			System.loadLibrary("fuselaj");
+		}
+		catch (UnsatisfiedLinkError ule) {
+			System.err.println("Unable to locate fuselaj library");
+			System.err.println("java.library.path = " + System.getProperty("java.library.path"));
+			System.err.println("  Tip: Use -Djava.library.path=/path/to/dir/containing/fuselaj/library");
+			System.err.println("  Tip: make sure fuselaj is built (make -C fuselaj/native)");
+			ule.printStackTrace();
+			System.exit(-1);
+		}
 		initialize();
 		return fuse_main(args);
 	}
