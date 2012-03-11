@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
+import java.util.Calendar;
 
 
 
@@ -30,7 +31,11 @@ public abstract class Filesystem {
 			return Charset.forName("utf-8").newEncoder();
 		}
 	};
-
+	
+	protected static long getUnixTime(long timeInMillis) {
+		return timeInMillis / 1000;
+	}
+	
 	private native void initialize();
 	
 	private native int fuse_main(String[] args);
