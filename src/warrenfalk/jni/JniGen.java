@@ -13,6 +13,9 @@ public class JniGen {
 		try {
 			String type = args[0];
 			File output = new File(args[1]).getAbsoluteFile();
+			File outdir = output.getParentFile();
+			if (!outdir.isDirectory())
+				outdir.mkdirs();
 			Class<?> input = Class.forName(args[2]);
 			PrintWriter writer = new PrintWriter(output);
 			try {
