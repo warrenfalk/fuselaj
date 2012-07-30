@@ -1,4 +1,4 @@
-JAVA_INCLUDE=-I/usr/lib/jvm/java-7-openjdk-amd64/include -I/usr/lib/jvm/java-7-openjdk-amd64/include/linux
+JAVA_INCLUDE=`javac -classpath . JavaHelp.java && java -classpath . JavaHelp include`
 OUTPUT=../bin
 SRCGEN=../src-gen
 CC=gcc
