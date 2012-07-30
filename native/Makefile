@@ -1,4 +1,4 @@
-JAVA_INCLUDE=`javac -classpath . JavaHelp.java && java -classpath . JavaHelp include`
+JAVA_INCLUDE:=$(shell javac -classpath . JavaHelp.java && java -classpath . JavaHelp include)
 OUTPUT=../bin
 SRCGEN=../src-gen
 CC=gcc
