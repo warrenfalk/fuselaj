@@ -7,6 +7,7 @@
 #include <string.h>
 #include <errno.h> /* contains definitions of error numbers */
 #include <fcntl.h> /* contains definitions of file options (the ones used with fcntl() and open()) */
+#include <unistd.h>
 //#include "fuseconnector.h"
 #include "../src-gen/warrenfalk_fuselaj_Filesystem.h"
 #include "../src-gen/warrenfalk_fuselaj_DirBuffer.h"
@@ -691,3 +692,13 @@ JNIEXPORT jobject JNICALL Java_warrenfalk_fuselaj_Filesystem_getCurrentContext (
 JNIEXPORT jobject JNICALL Java_warrenfalk_fuselaj_Filesystem_toObject (JNIEnv *env, jclass fsclass, jlong pointer) {
 	return (jobject)pointer;
 }
+
+JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_Filesystem__1os_1stat (JNIEnv *env, jclass fsclass, jstring path, jobject buf) {
+	const char *spath = (*env)->GetStringUTFChars(env, path, NULL);
+	void* statbuf = (*env)->GetDirectBufferAddress(env, buf);
+	int rval = stat(spath, (struct stat*)statbuf);
+	(*env)->ReleaseStringUTFChars(env, path, spath);
+
+	return rval;
+}
+

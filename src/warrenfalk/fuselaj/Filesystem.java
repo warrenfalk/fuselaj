@@ -43,6 +43,18 @@ public abstract class Filesystem {
 	
 	native static Object toObject(long jobject);
 	
+	/**
+	 * Does an operating system stat on the file, filling the Stat structure
+	 * @param path the path of the file to stat
+	 * @param stat the structure to populate
+	 * @return error code
+	 */
+	public static int os_stat(String path, Stat stat) {
+		return _os_stat(path, stat.bb);
+	}
+	
+	native static int _os_stat(String path, ByteBuffer bb);
+	
 	boolean isImplemented(String name) {
 		Method base = getBaseMethod(name);
 		if (base == null)
