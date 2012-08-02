@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
+import java.nio.file.Path;
 
 
 
@@ -49,8 +50,8 @@ public abstract class Filesystem {
 	 * @param stat the structure to populate
 	 * @return error code
 	 */
-	public static int os_stat(String path, Stat stat) {
-		return _os_stat(path, stat.bb);
+	public static int os_stat(Path path, Stat stat) {
+		return _os_stat(path.toString(), stat.bb);
 	}
 	
 	native static int _os_stat(String path, ByteBuffer bb);
@@ -117,7 +118,7 @@ public abstract class Filesystem {
 	 * @param stat the Stat structure to fill in
 	 * @throws FilesystemException
 	 */
-	protected void getattr(String path, Stat stat) throws FilesystemException {
+	protected void getattr(Path path, Stat stat) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 	
@@ -162,7 +163,7 @@ public abstract class Filesystem {
 	 * @param fileInfo a structure containing detail on the directory
 	 * @throws FilesystemException
 	 */
-	protected void readdir(String path, DirBuffer dirBuffer, FileInfo fileInfo) throws FilesystemException {
+	protected void readdir(Path path, DirBuffer dirBuffer, FileInfo fileInfo) throws FilesystemException {
 		throw new FilesystemException(Errno.NoSuchFileOrDirectory);
 	}
 
@@ -203,7 +204,7 @@ public abstract class Filesystem {
 	 * @param fileInfo
 	 * @throws FilesystemException
 	 */
-	protected void open(String path, FileInfo fileInfo) throws FilesystemException {
+	protected void open(Path path, FileInfo fileInfo) throws FilesystemException {
 		throw new FilesystemException(Errno.NoSuchFileOrDirectory);
 	}
 	
@@ -238,7 +239,7 @@ public abstract class Filesystem {
 	 * @param position
 	 * @throws FilesystemException
 	 */
-	protected void read(String path, FileInfo fileInfo, ByteBuffer buffer, long position) throws FilesystemException {
+	protected void read(Path path, FileInfo fileInfo, ByteBuffer buffer, long position) throws FilesystemException {
 		throw new FilesystemException(Errno.NoSuchFileOrDirectory);
 	}
 	
@@ -263,7 +264,7 @@ public abstract class Filesystem {
 	 * @param mode
 	 * @throws FilesystemException
 	 */
-	protected void mkdir(String path, int mode) throws FilesystemException {
+	protected void mkdir(Path path, int mode) throws FilesystemException {
 		throw new FilesystemException(Errno.NoSuchFileOrDirectory);
 	}
 	
@@ -345,7 +346,7 @@ public abstract class Filesystem {
      * @param fi
      * @throws FilesystemException
      */
-    protected void fgetattr(String path, Stat stat, FileInfo fi) throws FilesystemException {
+    protected void fgetattr(Path path, Stat stat, FileInfo fi) throws FilesystemException {
     	getattr(path, stat);
 	}
 
@@ -385,7 +386,7 @@ public abstract class Filesystem {
      * @param mask
      * @throws FilesystemException
      */
-    protected void access(String path, int mask) throws FilesystemException {
+    protected void access(Path path, int mask) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -418,7 +419,7 @@ public abstract class Filesystem {
      * @return a String representing the target of the symbolic link
      * @throws FilesystemException
      */
-    protected String readlink(String path) throws FilesystemException {
+    protected String readlink(Path path) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -451,7 +452,7 @@ public abstract class Filesystem {
      * @param fi
      * @throws FilesystemException
      */
-    protected void opendir(String path, FileInfo fi) throws FilesystemException {
+    protected void opendir(Path path, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -480,7 +481,7 @@ public abstract class Filesystem {
      * @param rdev
      * @throws FilesystemException
      */
-    protected void mknod(String path, int mode, long rdev) throws FilesystemException {
+    protected void mknod(Path path, int mode, long rdev) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -503,7 +504,7 @@ public abstract class Filesystem {
      * @param path
      * @throws FilesystemException
      */
-    protected void unlink(String path) throws FilesystemException {
+    protected void unlink(Path path) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -530,7 +531,7 @@ public abstract class Filesystem {
      * @param path
      * @throws FilesystemException
      */
-	protected void rmdir(String path) throws FilesystemException {
+	protected void rmdir(Path path) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -626,7 +627,7 @@ public abstract class Filesystem {
      * @param mode
      * @throws FilesystemException
      */
-    protected void chmod(String path, int mode) throws FilesystemException {
+    protected void chmod(Path path, int mode) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -655,7 +656,7 @@ public abstract class Filesystem {
      * @param gid new group id or -1 to leave unchanged
      * @throws FilesystemException
      */
-    protected void chown(String path, int uid, int gid) throws FilesystemException {
+    protected void chown(Path path, int uid, int gid) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -679,7 +680,7 @@ public abstract class Filesystem {
      * @param size
      * @throws FilesystemException
      */
-    protected void truncate(String path, long size) throws FilesystemException {
+    protected void truncate(Path path, long size) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -713,7 +714,7 @@ public abstract class Filesystem {
      * @param fi
      * @throws FilesystemException
      */
-    protected void ftruncate(String path, long size, FileInfo fi) throws FilesystemException {
+    protected void ftruncate(Path path, long size, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -742,7 +743,7 @@ public abstract class Filesystem {
      * @param modNanoseconds
      * @throws FilesystemException
      */
-    protected void utimens(String path, long accessSeconds, long accessNanoseconds, long modSeconds, long modNanoseconds) throws FilesystemException {
+    protected void utimens(Path path, long accessSeconds, long accessNanoseconds, long modSeconds, long modNanoseconds) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -775,7 +776,7 @@ public abstract class Filesystem {
      * @param offset
      * @throws FilesystemException
      */
-    protected void write(String path, FileInfo fi, ByteBuffer bb, long offset) throws FilesystemException {
+    protected void write(Path path, FileInfo fi, ByteBuffer bb, long offset) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -804,7 +805,7 @@ public abstract class Filesystem {
      * @param stat
      * @throws FilesystemException
      */
-    protected void statfs(String path, StatVfs stat) throws FilesystemException {
+    protected void statfs(Path path, StatVfs stat) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -840,7 +841,7 @@ public abstract class Filesystem {
      * @param fi
      * @throws FilesystemException
      */
-    protected void release(String path, FileInfo fi) throws FilesystemException {
+    protected void release(Path path, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -866,7 +867,7 @@ public abstract class Filesystem {
      * @param fi
      * @throws FilesystemException
      */
-    protected void releasedir(String path, FileInfo fi) throws FilesystemException {
+    protected void releasedir(Path path, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -896,7 +897,7 @@ public abstract class Filesystem {
      * @param fi
      * @throws FilesystemException
      */
-    protected void fsync(String path, boolean isdatasync, FileInfo fi) throws FilesystemException {
+    protected void fsync(Path path, boolean isdatasync, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -926,7 +927,7 @@ public abstract class Filesystem {
      * @param fi
      * @throws FilesystemException
      */
-    protected void fsyncdir(String path, boolean isdatasync, FileInfo fi) throws FilesystemException {
+    protected void fsyncdir(Path path, boolean isdatasync, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -971,7 +972,7 @@ public abstract class Filesystem {
      * @param fi
      * @throws FilesystemException
      */
-    protected void flush(String path, FileInfo fi) throws FilesystemException {
+    protected void flush(Path path, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -1026,7 +1027,7 @@ public abstract class Filesystem {
      * @param locks
      * @throws FilesystemException
      */
-    protected void lock(String path, FileInfo fi, int cmd, Flock locks) throws FilesystemException {
+    protected void lock(Path path, FileInfo fi, int cmd, Flock locks) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -1056,7 +1057,7 @@ public abstract class Filesystem {
      * @param blockno
      * @throws FilesystemException
      */
-    protected void bmap(String path, long blocksize, ByteBuffer blockno) throws FilesystemException {
+    protected void bmap(Path path, long blocksize, ByteBuffer blockno) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -1083,7 +1084,7 @@ public abstract class Filesystem {
      * @param flags
      * @throws FilesystemException
      */
-    protected void setxattr(String path, String name, String value, long size, int flags) throws FilesystemException {
+    protected void setxattr(Path path, String name, String value, long size, int flags) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -1108,7 +1109,7 @@ public abstract class Filesystem {
      * @param value
      * @throws FilesystemException
      */
-    protected void getxattr(String path, String name, ByteBuffer value) throws FilesystemException {
+    protected void getxattr(Path path, String name, ByteBuffer value) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -1132,7 +1133,7 @@ public abstract class Filesystem {
      * @param list
      * @throws FilesystemException
      */
-    protected void listxattr(String path, ByteBuffer list) throws FilesystemException {
+    protected void listxattr(Path path, ByteBuffer list) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -1156,7 +1157,7 @@ public abstract class Filesystem {
 	 * @param name
 	 * @throws FilesystemException
 	 */
-	protected void removexattr(String path, String name) throws FilesystemException {
+	protected void removexattr(Path path, String name) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -1190,17 +1191,17 @@ public abstract class Filesystem {
 	 * @param fi
 	 * @throws FilesystemException
 	 */
-	protected void create(String path, int mode, FileInfo fi) throws FilesystemException {
+	protected void create(Path path, int mode, FileInfo fi) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
 	/*
 	@SuppressWarnings("unused")
-    private final int _ioctl(String path, int cmd, void* arg, ByteBuffer fi, unsigned int flags, void* data) {
+    private final int _ioctl(Path path, int cmd, void* arg, ByteBuffer fi, unsigned int flags, void* data) {
 	}
 
 	@SuppressWarnings("unused")
-    private final int _poll(String path, ByteBuffer fi, struct fuse_pollhandle* ph, unsigned* reventsp) {
+    private final int _poll(Path path, ByteBuffer fi, struct fuse_pollhandle* ph, unsigned* reventsp) {
 	}
 	*/
 }
