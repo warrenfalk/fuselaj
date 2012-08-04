@@ -269,12 +269,24 @@ public enum Errno {
 	final int code;
 	final String key;
 	final String msg;
-	final static Errno[] values = Errno.values();
+	final static Errno[] values = buildValues();
 	
 	Errno(int code, String key, String msg) {
 		this.code = code;
 		this.key = key;
 		this.msg = msg;
+	}
+	
+	private static Errno[] buildValues() {
+		Errno[] es = values();
+		int maxCode = 0;
+		for (Errno e : es)
+			if (maxCode < e.code)
+				maxCode = e.code;
+		Errno[] map = new Errno[maxCode + 1];
+		for (Errno e : es)
+			map[e.code] = e;
+		return map;
 	}
 	
 	public static Errno fromCode(int code) {

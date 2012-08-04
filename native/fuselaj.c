@@ -697,6 +697,8 @@ JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_FuselajFs__1os_1stat (JNIEnv *env
 	const char *spath = (*env)->GetStringUTFChars(env, path, NULL);
 	void* statbuf = (*env)->GetDirectBufferAddress(env, buf);
 	int rval = stat(spath, (struct stat*)statbuf);
+	if (rval != 0)
+		rval = errno;
 	(*env)->ReleaseStringUTFChars(env, path, spath);
 
 	return rval;
@@ -705,6 +707,8 @@ JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_FuselajFs__1os_1stat (JNIEnv *env
 JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_FuselajFs__1os_1mkdir (JNIEnv *env, jclass fsclass, jstring path, jint mode) {
 	const char *spath = (*env)->GetStringUTFChars(env, path, NULL);
 	int rval = mkdir(spath, mode);
+	if (rval != 0)
+		rval = errno;
 	(*env)->ReleaseStringUTFChars(env, path, spath);
 
 	return rval;
