@@ -575,7 +575,7 @@ public abstract class FuselajFs {
 
     private final int _rename(String from, String to) {
 		try {
-			rename(from, to);
+			rename(path(from), path(to));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -593,7 +593,7 @@ public abstract class FuselajFs {
      * @param to
      * @throws FilesystemException
      */
-    protected void rename(String from, String to) throws FilesystemException {
+    protected void rename(Path from, Path to) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
