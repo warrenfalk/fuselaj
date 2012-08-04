@@ -269,10 +269,15 @@ public enum Errno {
 	final int code;
 	final String key;
 	final String msg;
+	final static Errno[] values = Errno.values();
 	
 	Errno(int code, String key, String msg) {
 		this.code = code;
 		this.key = key;
 		this.msg = msg;
+	}
+	
+	public static Errno fromCode(int code) {
+		return values[code];
 	}
 }

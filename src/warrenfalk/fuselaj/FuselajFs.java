@@ -48,17 +48,32 @@ public abstract class FuselajFs {
 	
 	native static Object toObject(long jobject);
 	
+	private static void oscall(int code) throws FilesystemException {
+		if (code != 0)
+			throw new FilesystemException(Errno.fromCode(code));
+	}
+	
 	/**
 	 * Does an operating system stat on the file, filling the Stat structure
 	 * @param path the path of the file to stat
 	 * @param stat the structure to populate
-	 * @return error code
 	 */
-	public static int os_stat(Path path, Stat stat) {
-		return _os_stat(path.toString(), stat.bb);
+	public static void os_stat(Path path, Stat stat) throws FilesystemException {
+		oscall(_os_stat(path.toString(), stat.bb));
 	}
 	
 	native static int _os_stat(String path, ByteBuffer bb);
+
+	/**
+	 * Calls the operating system's mkdir() function
+	 * @param path
+	 * @param mode
+	 */
+	public static void os_mkdir(Path path, int mode) throws FilesystemException {
+		oscall(_os_mkdir(path.toString(), mode));
+	}
+	
+	native static int _os_mkdir(String path, int mode);
 	
 	boolean isImplemented(String name) {
 		Method base = getBaseMethod(name);
