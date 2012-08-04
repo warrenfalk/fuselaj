@@ -64,7 +64,7 @@ public abstract class FuselajFs {
 		Method base = getBaseMethod(name);
 		if (base == null)
 			return false;
-		return isImplemented(base);
+		return isMethodImplemented(base);
 	}
 	
 	private Method getBaseMethod(String name) {
@@ -75,7 +75,7 @@ public abstract class FuselajFs {
 		return null;
 	}
 	
-	boolean isImplemented(Method base) {
+	private boolean isMethodImplemented(Method base) {
 		for (Method method : getClass().getDeclaredMethods()) {
 			if (!base.getName().equals(method.getName()))
 				continue;
