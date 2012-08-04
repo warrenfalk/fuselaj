@@ -721,3 +721,26 @@ JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_FuselajFs__1os_1rmdir (JNIEnv *en
 
 	return rval;
 }
+
+JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_FuselajFs__1os_1chown (JNIEnv *env, jclass fsclass, jstring path, jint uid, jint gid) {
+	const char *spath = (*env)->GetStringUTFChars(env, path, NULL);
+	fprintf(stderr, "%s, %d, %d\n", spath, uid, gid);
+	int rval = chown(spath, uid, gid);
+	if (rval != 0) {
+		rval = errno;
+		fprintf(stderr, "err: %d\n", errno);
+	}
+	(*env)->ReleaseStringUTFChars(env, path, spath);
+
+	return rval;
+}
+
+JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_FuselajFs__1os_1chmod (JNIEnv *env, jclass fsclass, jstring path, jint mode) {
+	const char *spath = (*env)->GetStringUTFChars(env, path, NULL);
+	int rval = chmod(spath, mode);
+	if (rval != 0)
+		rval = errno;
+	(*env)->ReleaseStringUTFChars(env, path, spath);
+
+	return rval;
+}

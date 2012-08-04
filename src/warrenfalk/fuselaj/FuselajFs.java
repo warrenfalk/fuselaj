@@ -85,6 +85,26 @@ public abstract class FuselajFs {
 	
 	native static int _os_rmdir(String path);
 	
+	/**
+	 * Calls the operating system's chown() function
+	 * @param path
+	 */
+	public static void os_chown(Path path, int uid, int gid) throws FilesystemException {
+		oscall(_os_chown(path.toString(), uid, gid));
+	}
+	
+	native static int _os_chown(String path, int uid, int gid);
+	
+	/**
+	 * Calls the operating system's chmod() function
+	 * @param path
+	 */
+	public static void os_chmod(Path path, int mode) throws FilesystemException {
+		oscall(_os_chmod(path.toString(), mode));
+	}
+	
+	native static int _os_chmod(String path, int mode);
+	
 	boolean isImplemented(String name) {
 		Method base = getBaseMethod(name);
 		if (base == null)
