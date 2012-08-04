@@ -12,20 +12,20 @@ clean:
 	rm -f $(OUTPUT)/*.o
 	rm -f $(SRCGEN)/*
 
-$(OUTPUT)/libfuselaj.so : fuselaj.c $(SRCGEN)/warrenfalk_fuselaj_FilesystemClass.c $(SRCGEN)/warrenfalk_fuselaj_FilesystemClass.h $(SRCGEN)/warrenfalk_fuselaj_DirBufferClass.c $(SRCGEN)/warrenfalk_fuselaj_DirBufferClass.h $(SRCGEN)/warrenfalk_fuselaj_Filesystem.h $(SRCGEN)/warrenfalk_fuselaj_DirBuffer.h
-	$(CC) $(CFLAGS) -o $@ -shared $(JAVA_INCLUDE) $(SRCGEN)/warrenfalk_fuselaj_FilesystemClass.c $(SRCGEN)/warrenfalk_fuselaj_DirBufferClass.c fuselaj.c `pkg-config fuse --libs --cflags` -fPIC
+$(OUTPUT)/libfuselaj.so : fuselaj.c $(SRCGEN)/warrenfalk_fuselaj_FuselajFsClass.c $(SRCGEN)/warrenfalk_fuselaj_FuselajFsClass.h $(SRCGEN)/warrenfalk_fuselaj_DirBufferClass.c $(SRCGEN)/warrenfalk_fuselaj_DirBufferClass.h $(SRCGEN)/warrenfalk_fuselaj_FuselajFs.h $(SRCGEN)/warrenfalk_fuselaj_DirBuffer.h
+	$(CC) $(CFLAGS) -o $@ -shared $(JAVA_INCLUDE) $(SRCGEN)/warrenfalk_fuselaj_FuselajFsClass.c $(SRCGEN)/warrenfalk_fuselaj_DirBufferClass.c fuselaj.c `pkg-config fuse --libs --cflags` -fPIC
 
-$(SRCGEN)/warrenfalk_fuselaj_Filesystem.h : $(OUTPUT)/warrenfalk/fuselaj/Filesystem.class
-	javah -d $(SRCGEN) -jni -classpath $(OUTPUT) warrenfalk.fuselaj.Filesystem
+$(SRCGEN)/warrenfalk_fuselaj_FuselajFs.h : $(OUTPUT)/warrenfalk/fuselaj/FuselajFs.class
+	javah -d $(SRCGEN) -jni -classpath $(OUTPUT) warrenfalk.fuselaj.FuselajFs
 
 $(SRCGEN)/warrenfalk_fuselaj_DirBuffer.h : $(OUTPUT)/warrenfalk/fuselaj/DirBuffer.class
 	javah -d $(SRCGEN) -jni -classpath $(OUTPUT) warrenfalk.fuselaj.DirBuffer
 	
-$(SRCGEN)/warrenfalk_fuselaj_FilesystemClass.h : $(OUTPUT)/warrenfalk/jni/JniGen.class $(OUTPUT)/warrenfalk/fuselaj/Filesystem.class
-	java -classpath $(OUTPUT) warrenfalk.jni.JniGen header $@ warrenfalk.fuselaj.Filesystem
+$(SRCGEN)/warrenfalk_fuselaj_FuselajFsClass.h : $(OUTPUT)/warrenfalk/jni/JniGen.class $(OUTPUT)/warrenfalk/fuselaj/FuselajFs.class
+	java -classpath $(OUTPUT) warrenfalk.jni.JniGen header $@ warrenfalk.fuselaj.FuselajFs
 
-$(SRCGEN)/warrenfalk_fuselaj_FilesystemClass.c : $(OUTPUT)/warrenfalk/jni/JniGen.class $(OUTPUT)/warrenfalk/fuselaj/Filesystem.class
-	java -classpath $(OUTPUT) warrenfalk.jni.JniGen impl $@ warrenfalk.fuselaj.Filesystem
+$(SRCGEN)/warrenfalk_fuselaj_FuselajFsClass.c : $(OUTPUT)/warrenfalk/jni/JniGen.class $(OUTPUT)/warrenfalk/fuselaj/FuselajFs.class
+	java -classpath $(OUTPUT) warrenfalk.jni.JniGen impl $@ warrenfalk.fuselaj.FuselajFs
 
 $(SRCGEN)/warrenfalk_fuselaj_DirBufferClass.h : $(OUTPUT)/warrenfalk/jni/JniGen.class $(OUTPUT)/warrenfalk/fuselaj/DirBuffer.class
 	java -classpath $(OUTPUT) warrenfalk.jni.JniGen header $@ warrenfalk.fuselaj.DirBuffer

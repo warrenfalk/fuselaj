@@ -115,6 +115,7 @@ public class JniGen {
 			}
 		}
 		catch (Throwable t) {
+			t.printStackTrace();
 			System.exit(1);
 		}
 	}

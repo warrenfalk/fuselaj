@@ -5,11 +5,13 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Path;
 
 
 
-public abstract class Filesystem {
+public abstract class FuselajFs {
 	/** Flag indicating, that the filesystem can accept a NULL path
 	 * as the first argument for the following operations:
 	 *
@@ -17,13 +19,15 @@ public abstract class Filesystem {
 	 * fsyncdir, ftruncate, fgetattr and lock
 	 */
 	final boolean nullPathsOk;
+	final FileSystem nfs;
 	
 	/** Construct a Filesystem object
 	 * 
 	 * @param nullPathsOk flag indicating that the filesystem can accept a NULL path as the first argument for operations receiving FileInfo structure
 	 */
-	public Filesystem(final boolean nullPathsOk) {
+	public FuselajFs(final boolean nullPathsOk) {
 		this.nullPathsOk = nullPathsOk;
+		this.nfs = FileSystems.getDefault();
 	}
 	
 	final static ThreadLocal<CharsetEncoder> _utf8encoder = new ThreadLocal<CharsetEncoder>() {
@@ -64,7 +68,7 @@ public abstract class Filesystem {
 	}
 	
 	private Method getBaseMethod(String name) {
-		for (Method method : Filesystem.class.getDeclaredMethods()) {
+		for (Method method : FuselajFs.class.getDeclaredMethods()) {
 			if (name.equals(method.getName()))
 				return method;
 		}
@@ -82,7 +86,7 @@ public abstract class Filesystem {
 			for (int i = 0; i < baseptypes.length; i++)
 				if (!baseptypes[i].equals(methodptypes[i]))
 					continue;
-			return !method.getDeclaringClass().equals(Filesystem.class); 
+			return !method.getDeclaringClass().equals(FuselajFs.class); 
 		}
 		return false; 
 	}
@@ -101,6 +105,16 @@ public abstract class Filesystem {
 		}
 		initialize();
 		return fuse_main(args);
+	}
+	
+	private Path path(String path) {
+		if (null == path)
+			return null;
+		int index = 0;
+		int length = path.length();
+		while (index < length && path.charAt(index) == '/')
+			index++;
+		return nfs.getPath(index == 0 ? path : path.substring(index));
 	}
 
 	/** Get file attributes.
@@ -124,7 +138,7 @@ public abstract class Filesystem {
 	
 	private final int _getattr(String path, ByteBuffer stat) {
 		try {
-			getattr(path, new Stat(stat));
+			getattr(path(path), new Stat(stat));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -169,7 +183,7 @@ public abstract class Filesystem {
 
 	private final int _readdir(String path, DirBuffer dirBuffer, ByteBuffer fileInfo) {
 		try {
-			readdir(path, dirBuffer, new FileInfo(fileInfo));
+			readdir(path(path), dirBuffer, new FileInfo(fileInfo));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -210,7 +224,7 @@ public abstract class Filesystem {
 	
 	private final int _open(String path, ByteBuffer fileInfo) {
 		try {
-			open(path, new FileInfo(fileInfo));
+			open(path(path), new FileInfo(fileInfo));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -246,7 +260,7 @@ public abstract class Filesystem {
 	private final int _read(String path, ByteBuffer fileInfo, ByteBuffer buffer, long position) {
 		try {
 			int start = buffer.position();
-			read(path, new FileInfo(fileInfo), buffer, position);
+			read(path(path), new FileInfo(fileInfo), buffer, position);
 			return buffer.position() - start;
 		}
 		catch (FilesystemException e) {
@@ -270,7 +284,7 @@ public abstract class Filesystem {
 	
 	private final int _mkdir(String path, int mode) {
 		try {
-			mkdir(path, mode | Mode.IFDIR);
+			mkdir(path(path), mode | Mode.IFDIR);
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -318,7 +332,7 @@ public abstract class Filesystem {
 
     private final int _fgetattr(String path, ByteBuffer stat, ByteBuffer fi) {
 		try {
-			fgetattr(path, new Stat(stat), new FileInfo(fi));
+			fgetattr(path(path), new Stat(stat), new FileInfo(fi));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -352,7 +366,7 @@ public abstract class Filesystem {
 
     private final int _access(String path, int mask) {
 		try {
-			access(path, mask);
+			access(path(path), mask);
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -393,7 +407,7 @@ public abstract class Filesystem {
     private final int _readlink(String path, ByteBuffer buffer) {
 		// fill buffer with zero-terminated string
 		try {
-			String target = readlink(path);
+			String target = readlink(path(path));
 			CharBuffer cb = CharBuffer.wrap(target);
 			CharsetEncoder encoder = _utf8encoder.get();
 			encoder.encode(cb, buffer, true);
@@ -425,7 +439,7 @@ public abstract class Filesystem {
 
     private final int _opendir(String path, ByteBuffer fi) {
 		try {
-			opendir(path, new FileInfo(fi));
+			opendir(path(path), new FileInfo(fi));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -458,7 +472,7 @@ public abstract class Filesystem {
 
     private final int _mknod(String path, int mode, long rdev) {
 		try {
-			mknod(path, mode, rdev);
+			mknod(path(path), mode, rdev);
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -487,7 +501,7 @@ public abstract class Filesystem {
 
     private final int _unlink(String path) {
 		try {
-			unlink(path);
+			unlink(path(path));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -510,7 +524,7 @@ public abstract class Filesystem {
 
     private final int _rmdir(String path) {
 		try {
-			rmdir(path);
+			rmdir(path(path));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -609,7 +623,7 @@ public abstract class Filesystem {
 
     private final int _chmod(String path, int mode) {
 		try {
-			chmod(path, mode);
+			chmod(path(path), mode);
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -633,7 +647,7 @@ public abstract class Filesystem {
 
     private final int _chown(String path, int uid, int gid) {
 		try {
-			chown(path, uid, gid);
+			chown(path(path), uid, gid);
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -662,7 +676,7 @@ public abstract class Filesystem {
 
     private final int _truncate(String path, long size) {
 		try {
-			truncate(path, size);
+			truncate(path(path), size);
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -686,7 +700,7 @@ public abstract class Filesystem {
 
     private final int _ftruncate(String path, long size, ByteBuffer fileInfo) {
 		try {
-			ftruncate(path, size, new FileInfo(fileInfo));
+			ftruncate(path(path), size, new FileInfo(fileInfo));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -720,7 +734,7 @@ public abstract class Filesystem {
 
     private final int _utimens(String path, long accessSeconds, long accessNanoseconds, long modSeconds, long modNanoseconds) {
 		try {
-			utimens(path, accessSeconds, accessNanoseconds, modSeconds, modNanoseconds);
+			utimens(path(path), accessSeconds, accessNanoseconds, modSeconds, modNanoseconds);
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -750,7 +764,7 @@ public abstract class Filesystem {
     private final int _write(String path, ByteBuffer fi, ByteBuffer bb, long offset) {
 		try {
 			int start = bb.position();
-			write(path, new FileInfo(fi), bb, offset);
+			write(path(path), new FileInfo(fi), bb, offset);
 			return bb.position() - start;
 		}
 		catch (FilesystemException e) {
@@ -782,7 +796,7 @@ public abstract class Filesystem {
 
     private final int _statfs(String path, ByteBuffer stat) {
 		try {
-			statfs(path, new StatVfs(stat));
+			statfs(path(path), new StatVfs(stat));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -811,7 +825,7 @@ public abstract class Filesystem {
 
     private final int _release(String path, ByteBuffer fi) {
 		try {
-			release(path, new FileInfo(fi));
+			release(path(path), new FileInfo(fi));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -847,7 +861,7 @@ public abstract class Filesystem {
 
     private final int _releasedir(String path, ByteBuffer fi) {
 		try {
-			releasedir(path, new FileInfo(fi));
+			releasedir(path(path), new FileInfo(fi));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -873,7 +887,7 @@ public abstract class Filesystem {
 
     private final int _fsync(String path, int isdatasync, ByteBuffer fi) {
 		try {
-			fsync(path, isdatasync != 0, new FileInfo(fi));
+			fsync(path(path), isdatasync != 0, new FileInfo(fi));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -903,7 +917,7 @@ public abstract class Filesystem {
 
     private final int _fsyncdir(String path, int isdatasync, ByteBuffer fi) {
 		try {
-			fsyncdir(path, isdatasync != 0, new FileInfo(fi));
+			fsyncdir(path(path), isdatasync != 0, new FileInfo(fi));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -933,7 +947,7 @@ public abstract class Filesystem {
 
     private final int _flush(String path, ByteBuffer fi) {
 		try {
-			flush(path, new FileInfo(fi));
+			flush(path(path), new FileInfo(fi));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -978,7 +992,7 @@ public abstract class Filesystem {
 
     private final int _lock(String path, ByteBuffer fi, int cmd, ByteBuffer locks) {
 		try {
-			lock(path, new FileInfo(fi), cmd, new Flock(locks));
+			lock(path(path), new FileInfo(fi), cmd, new Flock(locks));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -1033,7 +1047,7 @@ public abstract class Filesystem {
 
     private final int _bmap(String path, long blocksize, ByteBuffer blockno) {
 		try {
-			bmap(path, blocksize, blockno);
+			bmap(path(path), blocksize, blockno);
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -1063,7 +1077,7 @@ public abstract class Filesystem {
 
     private final int _setxattr(String path, String name, String value, long size, int flags) {
 		try {
-			setxattr(path, name, value, size, flags);
+			setxattr(path(path), name, value, size, flags);
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -1090,7 +1104,7 @@ public abstract class Filesystem {
 
     private final int _getxattr(String path, String name, ByteBuffer value) {
 		try {
-			getxattr(path, name, value);
+			getxattr(path(path), name, value);
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -1115,7 +1129,7 @@ public abstract class Filesystem {
 
     private final int _listxattr(String path, ByteBuffer list) {
 		try {
-			listxattr(path, list);
+			listxattr(path(path), list);
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -1139,7 +1153,7 @@ public abstract class Filesystem {
 
 	private final int _removexattr(String path, String name) {
 		try {
-			removexattr(path, name);
+			removexattr(path(path), name);
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -1163,7 +1177,7 @@ public abstract class Filesystem {
 
 	private final int _create(String path, int mode, ByteBuffer fi) {
 		try {
-			create(path, mode, new FileInfo(fi));
+			create(path(path), mode, new FileInfo(fi));
 			return 0;
 		}
 		catch (FilesystemException e) {

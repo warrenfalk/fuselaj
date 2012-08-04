@@ -13,7 +13,7 @@ public class FuseContext {
 	
 	public static FuseContext getCurrent() {
 		try {
-			return new FuseContext(Filesystem.getCurrentContext());
+			return new FuseContext(FuselajFs.getCurrentContext());
 		}
 		catch (UnsatisfiedLinkError e) {
 			return null;
@@ -52,7 +52,7 @@ public class FuseContext {
 	 * Get Private data returned from init()
 	 */
 	public Object getPrivateData() {
-		return Filesystem.toObject(bb.getLong(0x18));
+		return FuselajFs.toObject(bb.getLong(0x18));
 	}
 	
 	/**
