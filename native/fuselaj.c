@@ -709,3 +709,11 @@ JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_FuselajFs__1os_1mkdir (JNIEnv *en
 
 	return rval;
 }
+
+JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_FuselajFs__1os_1rmdir (JNIEnv *env, jclass fsclass, jstring path) {
+	const char *spath = (*env)->GetStringUTFChars(env, path, NULL);
+	int rval = rmdir(spath);
+	(*env)->ReleaseStringUTFChars(env, path, spath);
+
+	return rval;
+}

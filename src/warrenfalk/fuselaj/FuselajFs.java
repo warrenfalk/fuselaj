@@ -75,6 +75,16 @@ public abstract class FuselajFs {
 	
 	native static int _os_mkdir(String path, int mode);
 	
+	/**
+	 * Calls the operating system's rmdir() function
+	 * @param path
+	 */
+	public static void os_rmdir(Path path) throws FilesystemException {
+		oscall(_os_rmdir(path.toString()));
+	}
+	
+	native static int _os_rmdir(String path);
+	
 	boolean isImplemented(String name) {
 		Method base = getBaseMethod(name);
 		if (base == null)
