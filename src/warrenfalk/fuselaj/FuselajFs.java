@@ -19,7 +19,7 @@ public abstract class FuselajFs {
 	 * fsyncdir, ftruncate, fgetattr and lock
 	 */
 	final boolean nullPathsOk;
-	final FileSystem nfs;
+	protected final FileSystem nfs;
 	
 	/** Construct a Filesystem object
 	 * 
@@ -407,8 +407,8 @@ public abstract class FuselajFs {
     private final int _readlink(String path, ByteBuffer buffer) {
 		// fill buffer with zero-terminated string
 		try {
-			String target = readlink(path(path));
-			CharBuffer cb = CharBuffer.wrap(target);
+			Path target = readlink(path(path));
+			CharBuffer cb = CharBuffer.wrap(target.toString());
 			CharsetEncoder encoder = _utf8encoder.get();
 			encoder.encode(cb, buffer, true);
 			buffer.put((byte)0);
@@ -433,7 +433,7 @@ public abstract class FuselajFs {
      * @return a String representing the target of the symbolic link
      * @throws FilesystemException
      */
-    protected String readlink(Path path) throws FilesystemException {
+    protected Path readlink(Path path) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -551,7 +551,7 @@ public abstract class FuselajFs {
 
     private final int _symlink(String targetOfLink, String pathOfLink) {
 		try {
-			symlink(targetOfLink, pathOfLink);
+			symlink(path(targetOfLink), path(pathOfLink));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -569,7 +569,7 @@ public abstract class FuselajFs {
      * @param pathOfLink
      * @throws FilesystemException
      */
-    protected void symlink(String targetOfLink, String pathOfLink) throws FilesystemException {
+    protected void symlink(Path targetOfLink, Path pathOfLink) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
@@ -599,7 +599,7 @@ public abstract class FuselajFs {
 
     private final int _link(String from, String to) {
 		try {
-			link(from, to);
+			link(path(from), path(to));
 			return 0;
 		}
 		catch (FilesystemException e) {
@@ -617,7 +617,7 @@ public abstract class FuselajFs {
      * @param to
      * @throws FilesystemException
      */
-    protected void link(String from, String to) throws FilesystemException {
+    protected void link(Path from, Path to) throws FilesystemException {
 		throw new FilesystemException(Errno.FunctionNotImplemented);
 	}
 
