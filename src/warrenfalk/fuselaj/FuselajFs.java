@@ -63,6 +63,17 @@ public abstract class FuselajFs {
 	}
 	
 	native static int _os_stat(String path, ByteBuffer bb);
+	
+	/**
+	 * Does an operating system lstat on the file, filling the Stat structure
+	 * @param path the path of the file to stat
+	 * @param stat the structure to populate
+	 */
+	public static void os_lstat(Path path, Stat stat) throws FilesystemException {
+		oscall(_os_lstat(path.toString(), stat.bb));
+	}
+	
+	native static int _os_lstat(String path, ByteBuffer bb);	
 
 	/**
 	 * Calls the operating system's mkdir() function
