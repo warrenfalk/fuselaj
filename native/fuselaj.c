@@ -767,3 +767,27 @@ JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_FuselajFs__1os_1rename (JNIEnv *e
 
 	return rval;
 }
+
+JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_FuselajFs__1os_1readlink (JNIEnv *env, jclass fsclass, jstring path, jobject bb) {
+	const char *spath = (*env)->GetStringUTFChars(env, path, NULL);
+	void* bbdata = (*env)->GetDirectBufferAddress(env, bb);
+	jlong capacity = (*env)->GetDirectBufferCapacity(env, bb);
+	int rval = readlink(spath, (jbyte*)bbdata, capacity);
+	if (rval < 0)
+		rval = -errno;
+	(*env)->ReleaseStringUTFChars(env, path, spath);
+
+	return rval;
+}
+
+JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_FuselajFs__1os_1symlink (JNIEnv *env, jclass fsclass, jstring from, jstring to) {
+	const char *sfrom = (*env)->GetStringUTFChars(env, from, NULL);
+	const char *sto = (*env)->GetStringUTFChars(env, to, NULL);
+	int rval = symlink(sfrom, sto);
+	if (rval != 0)
+		rval = errno;
+	(*env)->ReleaseStringUTFChars(env, from, sfrom);
+	(*env)->ReleaseStringUTFChars(env, to, sto);
+
+	return rval;
+}

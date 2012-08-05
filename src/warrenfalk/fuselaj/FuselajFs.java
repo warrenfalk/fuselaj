@@ -4,7 +4,9 @@ import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
+import java.nio.charset.CoderResult;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
@@ -125,6 +127,40 @@ public abstract class FuselajFs {
 	}
 	
 	native static int _os_rename(String from, String to);
+	
+	/**
+	 * Calls the operating system's readlink() function
+	 * @param from
+	 */
+	public Path os_readlink(Path link) throws FilesystemException {
+		// TODO: consider threadlocal for these buffers
+		ByteBuffer bb = ByteBuffer.allocateDirect(4096);
+		CharBuffer cb = CharBuffer.allocate(4096);
+		int rval = _os_readlink(link.toString(), bb);
+		if (rval < 0)
+			throw new FilesystemException(Errno.fromCode(-rval));
+		bb.position(rval);
+		bb.flip();
+		CharsetDecoder decoder = Charset.forName("utf-8").newDecoder();
+		decoder.reset();
+		CoderResult result = decoder.decode(bb, cb, true);
+		if (result.isOverflow() && result.isError())
+			throw new FilesystemException(Errno.FileNameTooLong);
+		cb.flip();
+		return nfs.getPath(cb.toString());
+	}
+	
+	native static int _os_readlink(String link, ByteBuffer bb);
+	
+	/**
+	 * Calls the operating system's symlink() function
+	 * @param from
+	 */
+	public static void os_symlink(Path from, Path to) throws FilesystemException {
+		oscall(_os_symlink(from.toString(), to.toString()));
+	}
+	
+	native static int _os_symlink(String from, String to);
 	
 	boolean isImplemented(String name) {
 		Method base = getBaseMethod(name);
