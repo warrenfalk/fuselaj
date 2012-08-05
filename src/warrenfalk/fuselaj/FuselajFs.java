@@ -105,6 +105,16 @@ public abstract class FuselajFs {
 	
 	native static int _os_chmod(String path, int mode);
 	
+	/**
+	 * Calls the operating system's rename() function
+	 * @param from
+	 */
+	public static void os_rename(Path from, Path to) throws FilesystemException {
+		oscall(_os_rename(from.toString(), to.toString()));
+	}
+	
+	native static int _os_rename(String from, String to);
+	
 	boolean isImplemented(String name) {
 		Method base = getBaseMethod(name);
 		if (base == null)

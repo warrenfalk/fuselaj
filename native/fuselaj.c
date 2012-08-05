@@ -744,3 +744,15 @@ JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_FuselajFs__1os_1chmod (JNIEnv *en
 
 	return rval;
 }
+
+JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_FuselajFs__1os_1rename (JNIEnv *env, jclass fsclass, jstring from, jstring to) {
+	const char *sfrom = (*env)->GetStringUTFChars(env, from, NULL);
+	const char *sto = (*env)->GetStringUTFChars(env, to, NULL);
+	int rval = rename(sfrom, sto);
+	if (rval != 0)
+		rval = errno;
+	(*env)->ReleaseStringUTFChars(env, from, sfrom);
+	(*env)->ReleaseStringUTFChars(env, to, sto);
+
+	return rval;
+}
