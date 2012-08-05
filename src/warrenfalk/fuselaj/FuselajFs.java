@@ -89,6 +89,17 @@ public abstract class FuselajFs {
 	native static int _os_mkdir(String path, int mode);
 	
 	/**
+	 * Calls the operating system's truncate() function
+	 * @param path
+	 * @param mode
+	 */
+	public static void os_truncate(Path path, long size) throws FilesystemException {
+		oscall(_os_truncate(path.toString(), size));
+	}
+	
+	native static int _os_truncate(String path, long size);
+	
+	/**
 	 * Calls the operating system's rmdir() function
 	 * @param path
 	 */
