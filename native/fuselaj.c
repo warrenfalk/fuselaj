@@ -791,3 +791,18 @@ JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_FuselajFs__1os_1symlink (JNIEnv *
 
 	return rval;
 }
+
+JNIEXPORT jint JNICALL Java_warrenfalk_fuselaj_FuselajFs__1os_1utimensat (JNIEnv *env, jclass fsclass, jstring path, jlong aSec, jlong aNsec, jlong mSec, jlong mNsec) {
+	const char *spath = (*env)->GetStringUTFChars(env, path, NULL);
+	struct timespec times[2];
+	times[0].tv_sec = aSec;
+	times[0].tv_nsec = aNsec;
+	times[1].tv_sec = mSec;
+	times[1].tv_nsec = mNsec;
+	int rval = utimensat(0, spath, times, AT_SYMLINK_NOFOLLOW);
+	if (rval != 0)
+		rval = errno;
+	(*env)->ReleaseStringUTFChars(env, path, spath);
+
+	return rval;
+}

@@ -129,6 +129,16 @@ public abstract class FuselajFs {
 	native static int _os_rename(String from, String to);
 	
 	/**
+	 * Calls the operating system's utimensat() function
+	 * @param from
+	 */
+	public static void os_utimensat(Path path, long aSec, long aNsec, long mSec, long mNsec) throws FilesystemException {
+		oscall(_os_utimensat(path.toString(), aSec, aNsec, mSec, mNsec));
+	}
+	
+	native static int _os_utimensat(String from, long aSec, long aNsec, long mSec, long mNsec);
+	
+	/**
 	 * Calls the operating system's readlink() function
 	 * @param from
 	 */
