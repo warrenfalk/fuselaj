@@ -183,6 +183,16 @@ public abstract class FuselajFs {
 	
 	native static int _os_symlink(String from, String to);
 	
+	/**
+	 * Calls the operating system's link() function
+	 * @param from
+	 */
+	public static void os_link(Path from, Path to) throws FilesystemException {
+		oscall(_os_link(from.toString(), to.toString()));
+	}
+	
+	native static int _os_link(String from, String to);
+	
 	boolean isImplemented(String name) {
 		Method base = getBaseMethod(name);
 		if (base == null)
