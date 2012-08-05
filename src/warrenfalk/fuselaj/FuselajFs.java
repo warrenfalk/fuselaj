@@ -653,7 +653,8 @@ public abstract class FuselajFs {
 
     private final int _symlink(String targetOfLink, String pathOfLink) {
 		try {
-			symlink(path(targetOfLink), path(pathOfLink));
+			Path target = nfs.getPath(targetOfLink);
+			symlink(target, path(pathOfLink));
 			return 0;
 		}
 		catch (FilesystemException e) {
