@@ -22,6 +22,27 @@ public abstract class FuselajFs {
 	 */
 	final boolean nullPathsOk;
 	protected final FileSystem nfs;
+
+	/** ThreadLocal buffer for accepting strings from native APIs **/
+	private final static ThreadLocal<ByteBuffer> nameByteBuffer = new ThreadLocal<ByteBuffer>() {
+		protected ByteBuffer initialValue() {
+			return ByteBuffer.allocateDirect(4096);
+		}
+	};
+	
+	/** ThreadLocal buffer for converting strings from native APIs **/
+	private final static ThreadLocal<CharBuffer> nameCharBuffer = new ThreadLocal<CharBuffer>() {
+		protected CharBuffer initialValue() {
+			return CharBuffer.allocate(4096);
+		}
+	};
+	
+	/** ThreadLocal decoder for converting strings from native APIs **/
+	private final static ThreadLocal<CharsetDecoder> utf8Decoder = new ThreadLocal<CharsetDecoder>() {
+		protected CharsetDecoder initialValue() {
+			return Charset.forName("utf-8").newDecoder();
+		};
+	};
 	
 	/** Construct a Filesystem object
 	 * 
@@ -154,16 +175,17 @@ public abstract class FuselajFs {
 	 * @param from
 	 */
 	public Path os_readlink(Path link) throws FilesystemException {
-		// TODO: consider threadlocal for these buffers
-		ByteBuffer bb = ByteBuffer.allocateDirect(4096);
-		CharBuffer cb = CharBuffer.allocate(4096);
+		ByteBuffer bb = nameByteBuffer.get();
+		CharBuffer cb = nameCharBuffer.get();
+		bb.clear();
 		int rval = _os_readlink(link.toString(), bb);
 		if (rval < 0)
 			throw new FilesystemException(Errno.fromCode(-rval));
 		bb.position(rval);
 		bb.flip();
-		CharsetDecoder decoder = Charset.forName("utf-8").newDecoder();
+		CharsetDecoder decoder = utf8Decoder.get();
 		decoder.reset();
+		cb.clear();
 		CoderResult result = decoder.decode(bb, cb, true);
 		if (result.isOverflow() && result.isError())
 			throw new FilesystemException(Errno.FileNameTooLong);
