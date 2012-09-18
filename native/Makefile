@@ -11,6 +11,7 @@ clean:
 	rm -f $(OUTPUT)/*.so
 	rm -f $(OUTPUT)/*.o
 	rm -f $(SRCGEN)/*
+	rm -f JavaHelp.class
 
 $(OUTPUT)/libfuselaj.so : fuselaj.c $(SRCGEN)/warrenfalk_fuselaj_FuselajFsClass.c $(SRCGEN)/warrenfalk_fuselaj_FuselajFsClass.h $(SRCGEN)/warrenfalk_fuselaj_DirBufferClass.c $(SRCGEN)/warrenfalk_fuselaj_DirBufferClass.h $(SRCGEN)/warrenfalk_fuselaj_FuselajFs.h $(SRCGEN)/warrenfalk_fuselaj_DirBuffer.h
 	$(CC) $(CFLAGS) -o $@ -shared $(JAVA_INCLUDE) $(SRCGEN)/warrenfalk_fuselaj_FuselajFsClass.c $(SRCGEN)/warrenfalk_fuselaj_DirBufferClass.c fuselaj.c `pkg-config fuse --libs --cflags` -fPIC
